@@ -5,7 +5,7 @@ import urllib.request
 import requests
 import sys
 
-GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/"
+GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
 MAIN_PROGRAM_PATH = os.path.abspath(__file__)
@@ -23,24 +23,32 @@ def sync_with_github():
         existing_files = set(os.listdir(PROGRAMS_PATH))
         github_files = set()
         main_program_updated = False
+        changes_made = []
 
         for file in files:
             if file['type'] == 'file' and file['name'].endswith('.pyw'):
                 github_files.add(file['name'])
                 if file['name'] == os.path.basename(MAIN_PROGRAM_PATH):
                     main_program_updated = download_and_update_main()
+                    if main_program_updated:
+                        changes_made.append("Main program updated.")
                 else:
-                    download_and_update_program(file)
+                    if download_and_update_program(file):
+                        changes_made.append(f"Updated/Added subprogram: {file['name']}")
 
         # Remove programs that are not in GitHub anymore
         for local_file in existing_files - github_files:
             os.remove(os.path.join(PROGRAMS_PATH, local_file))
+            changes_made.append(f"Deleted subprogram: {local_file}")
 
         if main_program_updated:
             messagebox.showinfo("Update", "Main program updated. Restarting...")
             os.execv(sys.executable, ['pythonw'] + sys.argv)
         else:
-            messagebox.showinfo("Update", "Programs updated successfully.")
+            if changes_made:
+                messagebox.showinfo("Update", "Programs updated successfully:\n" + "\n".join(changes_made))
+            else:
+                messagebox.showinfo("Update", "Pulled update successfully, no updates needed.")
     else:
         messagebox.showerror("Error", "Failed to fetch programs from GitHub.")
 
@@ -49,15 +57,20 @@ def download_and_update_program(file):
     local_file_path = os.path.join(PROGRAMS_PATH, file['name'])
     download_url = file['download_url']
     content = requests.get(download_url).content
-    with open(local_file_path, 'wb') as f:
-        f.write(content)
+    if not os.path.exists(local_file_path) or content != open(local_file_path, 'rb').read():
+        with open(local_file_path, 'wb') as f:
+            f.write(content)
+        return True
+    return False
 
 
 def download_and_update_main():
     content = requests.get(MAIN_PROGRAM_URL).content
-    with open(MAIN_PROGRAM_PATH, 'wb') as f:
-        f.write(content)
-    return True
+    if content != open(MAIN_PROGRAM_PATH, 'rb').read():
+        with open(MAIN_PROGRAM_PATH, 'wb') as f:
+            f.write(content)
+        return True
+    return False
 
 
 def program_selection():

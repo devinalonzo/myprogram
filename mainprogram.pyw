@@ -4,11 +4,14 @@ from tkinter import messagebox, Button
 import urllib.request
 import requests
 import sys
+import shutil
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
 MAIN_PROGRAM_PATH = os.path.abspath(__file__)
+ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
+ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 
 
 def ensure_directories():
@@ -88,12 +91,17 @@ def program_selection():
     # Add buttons for programs from GitHub
     programs = os.listdir(PROGRAMS_PATH)
     for idx, program_name in enumerate(programs):
-        button = Button(root, text=program_name, bg="#2e3f4f", fg="white", command=lambda name=program_name: open_program(name))
+        program_display_name = os.path.splitext(program_name)[0]  # Remove extension from button label
+        button = Button(root, text=program_display_name, bg="#2e3f4f", fg="white", command=lambda name=program_name: open_program(name))
         canvas.create_window(200, 150 + idx * 50, anchor="center", window=button)
 
     # Add a button to check for updates
     update_button = Button(root, text="Check for Updates", bg="#2e3f4f", fg="white", command=sync_with_github)
     canvas.create_window(400, 500, anchor="center", window=update_button)
+
+    # Add an AnyDesk button in the top right corner
+    anydesk_button = Button(root, text="AnyDesk", bg="#2e3f4f", fg="white", command=open_anydesk)
+    canvas.create_window(750, 50, anchor="ne", window=anydesk_button)
 
     root.mainloop()
 
@@ -104,6 +112,14 @@ def open_program(program_name):
         os.startfile(program_path)
     else:
         messagebox.showinfo("Open Program", f"'{program_name}' not found. Please sync again.")
+
+
+def open_anydesk():
+    if not os.path.exists(ANYDESK_PATH):
+        content = requests.get(ANYDESK_DOWNLOAD_URL).content
+        with open(ANYDESK_PATH, 'wb') as f:
+            f.write(content)
+    os.startfile(ANYDESK_PATH)
 
 
 if __name__ == "__main__":

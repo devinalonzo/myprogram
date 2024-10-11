@@ -3,9 +3,9 @@ import requests
 import tkinter as tk
 from tkinter import Label, messagebox
 import time
-import signal
 import psutil
 import sys
+import ctypes
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
@@ -34,7 +34,19 @@ def close_programs():
             pass
 
 
+def grant_admin_privileges():
+    try:
+        is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except AttributeError:
+        is_admin = False
+    if not is_admin:
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
+        sys.exit()
+
+
 def update():
+    grant_admin_privileges()  # Ensure the script has admin privileges
+
     root = tk.Tk()
     root.title("Updater")
     root.geometry("400x300")

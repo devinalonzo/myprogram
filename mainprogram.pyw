@@ -1,109 +1,86 @@
 import os
 import requests
 import tkinter as tk
-from tkinter import Label, messagebox
-import time
+from tkinter import messagebox, Button
+import subprocess
+import sys
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
-MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
+ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
+ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 PROGRAMS_PATH = r"C:\DevinsProgram\Programs"
-MAIN_PROGRAM_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "mainprogram.pyw")
-LOG_FILE_PATH = os.path.join(r"C:\DevinsProgram", "logs.txt")
-UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.py"
-UPDATER_PATH = os.path.join(r"C:\DevinsProgram", "updater.pyw")
+UPDATER_PATH = r"C:\DevinsProgram\updater.pyw"
+UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
 
 
-def log_message(message):
-    with open(LOG_FILE_PATH, 'a') as log_file:
-        log_file.write(f"{message}\n")
-    print(message)  # Print to console for easier debugging
+def ensure_directories():
+    if not os.path.exists(PROGRAMS_PATH):
+        os.makedirs(PROGRAMS_PATH)
 
 
 def download_updater():
-    log_message("Updater program not found. Downloading updater...")
     response = requests.get(UPDATER_URL)
     if response.status_code == 200:
         content = response.content
         with open(UPDATER_PATH, 'wb') as f:
             f.write(content)
-        log_message("Updater program downloaded successfully.")
     else:
-        log_message(f"Failed to download updater program. Status code: {response.status_code}")
         messagebox.showerror("Error", "Failed to download updater program. Please check your internet connection and try again.")
         return False
     return True
 
 
-def update():
+def update_main_program():
+    if not os.path.exists(UPDATER_PATH):
+        if not download_updater():
+            return
+    subprocess.Popen([sys.executable, UPDATER_PATH], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def program_selection():
+    ensure_directories()
     root = tk.Tk()
-    root.title("Updater")
-    root.geometry("400x300")
-    label = Label(root, text="Starting update...")
-    label.pack(pady=20)
-    root.update()
-    log_message("Starting update...")
+    root.title("Devin's Program")
+    root.geometry("800x600")
+    root.configure(bg="#2e3f4f")
 
-    # Update main program
-    label.config(text="Downloading main program...")
-    root.update()
-    log_message("Downloading main program...")
-    response = requests.get(MAIN_PROGRAM_URL)
-    if response.status_code == 200:
-        content = response.content
-        with open(MAIN_PROGRAM_PATH, 'wb') as f:
-            f.write(content)
-        label.config(text="Main program updated.")
-        log_message("Main program updated.")
-    else:
-        label.config(text=f"Failed to download main program. Status code: {response.status_code}")
-        log_message(f"Failed to download main program. Status code: {response.status_code}")
-    root.update()
-    time.sleep(1)
+    # Create Canvas for custom theme and background
+    canvas = tk.Canvas(root, width=800, height=600, bg="#2e3f4f")
+    canvas.pack()
 
-    # Update subprograms
-    label.config(text="Downloading subprograms...")
-    root.update()
-    log_message("Downloading subprograms...")
-    response = requests.get(GITHUB_REPO_URL)
-    if response.status_code == 200:
-        files = response.json()
-        log_message(f"Files fetched from GitHub: {files}")
+    # Add buttons for programs from GitHub
+    programs = os.listdir(PROGRAMS_PATH)
+    for idx, program_name in enumerate(programs):
+        program_display_name = os.path.splitext(program_name)[0]  # Remove extension from button label
+        button = Button(root, text=program_display_name, bg="#2e3f4f", fg="white", command=lambda name=program_name: open_program(name))
+        canvas.create_window(200, 150 + idx * 50, anchor="center", window=button)
 
-        # Clear the PROGRAMS_PATH directory
-        for filename in os.listdir(PROGRAMS_PATH):
-            file_path = os.path.join(PROGRAMS_PATH, filename)
-            os.remove(file_path)
-            log_message(f"Deleted: {file_path}")
+    # Add an AnyDesk button in the top right corner
+    anydesk_button = Button(root, text="AnyDesk", bg="#2e3f4f", fg="white", command=open_anydesk)
+    canvas.create_window(750, 50, anchor="ne", window=anydesk_button)
 
-        # Download all subprograms again
-        for file in files:
-            if file['type'] == 'file':
-                download_url = file['download_url']
-                log_message(f"Downloading from URL: {download_url}")
-                response = requests.get(download_url)
-                if response.status_code == 200:
-                    content = response.content
-                    with open(os.path.join(PROGRAMS_PATH, file['name']), 'wb') as f:
-                        f.write(content)
-                    log_message(f"Downloaded: {file['name']}")
-                else:
-                    log_message(f"Failed to download {file['name']}, status code: {response.status_code}")
-    else:
-        log_message(f"Failed to fetch subprograms, status code: {response.status_code}")
+    # Add an Update button in the top right corner
+    update_button = Button(root, text="Update", bg="#2e3f4f", fg="white", command=update_main_program)
+    canvas.create_window(650, 50, anchor="ne", window=update_button)
 
-    time.sleep(1)
-    label.config(text="Subprograms updated.")
-    root.update()
-    log_message("Subprograms updated.")
-
-    label.config(text="Update complete. Please restart the main program.")
-    root.update()
-    log_message("Update complete. Please restart the main program.")
     root.mainloop()
 
 
+def open_program(program_name):
+    program_path = os.path.join(PROGRAMS_PATH, program_name)
+    if os.path.exists(program_path):
+        os.startfile(program_path)
+    else:
+        messagebox.showinfo("Open Program", f"'{program_name}' not found. Please sync again.")
+
+
+def open_anydesk():
+    if not os.path.exists(ANYDESK_PATH):
+        content = requests.get(ANYDESK_DOWNLOAD_URL).content
+        with open(ANYDESK_PATH, 'wb') as f:
+            f.write(content)
+    os.startfile(ANYDESK_PATH)
+
+
 if __name__ == "__main__":
-    if not os.path.exists(UPDATER_PATH):
-        if not download_updater():
-            sys.exit(1)
-    update()
+    program_selection()

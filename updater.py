@@ -3,6 +3,9 @@ import requests
 import tkinter as tk
 from tkinter import Label, messagebox
 import time
+import signal
+import psutil
+import sys
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
@@ -17,6 +20,19 @@ def log_message(message):
     print(message)  # Print to console for easier debugging
 
 
+def close_programs():
+    # Close the main program and any subprograms
+    for process in psutil.process_iter(['pid', 'name']):
+        try:
+            if process.info['name'] == 'python.exe' or process.info['name'] == 'pythonw.exe':
+                cmdline = process.cmdline()
+                if any(part in cmdline for part in ["mainprogram.pyw", "Programs"]):
+                    log_message(f"Terminating process: {process.info['name']} with PID: {process.info['pid']}")
+                    process.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+
+
 def update():
     root = tk.Tk()
     root.title("Updater")
@@ -25,6 +41,13 @@ def update():
     label.pack(pady=20)
     root.update()
     log_message("Starting update...")
+
+    # Close running programs
+    label.config(text="Closing running programs...")
+    root.update()
+    log_message("Closing running programs...")
+    close_programs()
+    time.sleep(2)
 
     # Update main program
     label.config(text="Downloading main program...")

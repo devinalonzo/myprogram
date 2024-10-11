@@ -22,13 +22,14 @@ def log_message(message):
 
 def close_programs():
     # Close the main program and any subprograms
-    for process in psutil.process_iter(['pid', 'name']):
+    for process in psutil.process_iter(['pid', 'name', 'cmdline']):
         try:
-            if process.info['name'] == 'python.exe' or process.info['name'] == 'pythonw.exe':
-                cmdline = process.cmdline()
-                if any(part in cmdline for part in ["mainprogram.pyw", "Programs"]):
+            if process.info['name'] in ['python.exe', 'pythonw.exe']:
+                cmdline = process.info['cmdline']
+                if cmdline and any(part in cmdline for part in ["mainprogram.pyw", "Programs"]):
                     log_message(f"Terminating process: {process.info['name']} with PID: {process.info['pid']}")
                     process.terminate()
+                    process.wait()  # Wait for the process to terminate
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
 

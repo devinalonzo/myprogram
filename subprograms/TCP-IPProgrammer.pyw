@@ -1,237 +1,112 @@
-import sys
-import wmi
-import ctypes
-import os
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QLabel, QPushButton, QComboBox, QVBoxLayout,
-    QHBoxLayout, QMessageBox, QDialog, QLineEdit, QGridLayout, QGroupBox,
-    QRadioButton, QButtonGroup
-)
-from PyQt5.QtCore import Qt
+import tkinter as tk
+from tkinter import messagebox
+import subprocess
+import time
 
-def is_admin():
-    """Check if the script is running with administrative privileges."""
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
+class TCPIPProgrammer:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Devin's TCPIP Programmer")
+        
+        # Step 1: MAC Address Input
+        self.mac_label = tk.Label(root, text="Enter the card MAC address (format: xx-xx-xx-xx-xx-xx):")
+        self.mac_label.pack()
+        self.mac_entry = tk.Entry(root)
+        self.mac_entry.pack()
+        
+        # Step 2: IP Address and Gateway Input
+        self.ip_label = tk.Label(root, text="Enter the IP address for the card:")
+        self.ip_label.pack()
+        self.ip_entry = tk.Entry(root)
+        self.ip_entry.pack()
+        
+        self.gateway_label = tk.Label(root, text="Enter the gateway IP address:")
+        self.gateway_label.pack()
+        self.gateway_entry = tk.Entry(root)
+        self.gateway_entry.pack()
+        
+        # Step 3: Laptop IP Input
+        self.laptop_ip_label = tk.Label(root, text="Enter your laptop IP address (different from card IP):")
+        self.laptop_ip_label.pack()
+        self.laptop_ip_entry = tk.Entry(root)
+        self.laptop_ip_entry.pack()
+        
+        # Start Button
+        self.start_button = tk.Button(root, text="Start Programming", command=self.start_programming)
+        self.start_button.pack()
+        
+        # Log Output
+        self.log_text = tk.Text(root, height=15, width=50)
+        self.log_text.pack()
+        
+    def log(self, message):
+        self.log_text.insert(tk.END, message + "\n")
+        self.log_text.see(tk.END)
+        self.root.update()
 
-class IPChanger(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle('IP Changer')
-        self.initUI()
-        self.load_adapters()
-
-    def initUI(self):
-        # Adapter selection
-        adapter_label = QLabel('Select the network adapter you would like to change the IP:')
-        self.adapter_combo = QComboBox()
-        self.refresh_button = QPushButton('Refresh')
-        self.refresh_button.clicked.connect(self.load_adapters)
-        adapter_layout = QHBoxLayout()
-        adapter_layout.addWidget(self.adapter_combo)
-        adapter_layout.addWidget(self.refresh_button)
-
-        # Connect adapter selection change to update IP info
-        self.adapter_combo.currentIndexChanged.connect(self.update_ip_config_display)
-
-        # IP Scheme selection
-        scheme_label = QLabel('Select what IP Scheme you would like to set:')
-        self.scheme_group = QButtonGroup()
-        schemes = ["DHCP", "Omnia", "SSOM", "Gilbarco 10.5 Subnet", "Veriphone", "Applause", "Veeder-Root", "Manual"]
-        scheme_layout = QVBoxLayout()
-        for scheme in schemes:
-            radio = QRadioButton(scheme)
-            self.scheme_group.addButton(radio)
-            scheme_layout.addWidget(radio)
-        scheme_box = QGroupBox()
-        scheme_box.setLayout(scheme_layout)
-
-        # Set button
-        self.set_button = QPushButton('Set')
-        self.set_button.clicked.connect(self.apply_settings)
-
-        # IP Configuration display
-        self.ip_config_label = QLabel('Current IP Configuration:\n')
-        self.ip_config_label.setStyleSheet("QLabel { background-color : lightgrey; padding: 5px; }")
-
-        # Main layout
-        main_layout = QVBoxLayout()
-        main_layout.addWidget(adapter_label)
-        main_layout.addLayout(adapter_layout)
-        main_layout.addWidget(scheme_label)
-        main_layout.addWidget(scheme_box)
-        main_layout.addWidget(self.set_button)
-        main_layout.addWidget(self.ip_config_label)
-        self.setLayout(main_layout)
-
-    def load_adapters(self):
-        self.adapter_combo.blockSignals(True)  # Prevent signals during loading
-        self.adapter_combo.clear()
-        c = wmi.WMI()
-        adapters = c.Win32_NetworkAdapterConfiguration(IPEnabled=True)
-        for adapter in adapters:
-            self.adapter_combo.addItem(adapter.Description, adapter)
-        self.adapter_combo.blockSignals(False)
-        self.update_ip_config_display()
-
-    def apply_settings(self):
-        adapter = self.adapter_combo.currentData()
-        selected_scheme = None
-        for button in self.scheme_group.buttons():
-            if button.isChecked():
-                selected_scheme = button.text()
-                break
-        if not selected_scheme:
-            QMessageBox.warning(self, 'Error', 'Please select an IP Scheme.')
-            return
-        if not adapter:
-            QMessageBox.warning(self, 'Error', 'Please select a network adapter.')
-            return
-        if selected_scheme == 'Manual':
-            self.open_manual_dialog(adapter)
-        else:
-            self.set_ip(adapter, selected_scheme)
-
-    def set_ip(self, adapter, scheme_name):
-        if scheme_name == 'DHCP':
-            try:
-                res1 = adapter.EnableDHCP()
-                res2 = adapter.SetDNSServerSearchOrder()
-                QMessageBox.information(self, 'Success', 'Adapter set to DHCP.')
-            except Exception as e:
-                QMessageBox.warning(self, 'Error', f'Failed to set DHCP:\n{e}')
-        else:
-            scheme = ip_schemes.get(scheme_name)
-            if not scheme:
-                QMessageBox.warning(self, 'Error', 'Invalid IP scheme selected.')
-                return
-            ip = scheme['ip']
-            subnet = scheme['subnet']
-            gateway = scheme['gateway']
-            try:
-                res1 = adapter.EnableStatic(IPAddress=[ip], SubnetMask=[subnet])
-                if gateway:
-                    res2 = adapter.SetGateways(DefaultIPGateway=[gateway])
-                else:
-                    res2 = adapter.SetGateways(DefaultIPGateway=[])
-                QMessageBox.information(self, 'Success', f'Adapter IP set to {ip}.')
-            except Exception as e:
-                QMessageBox.warning(self, 'Error', f'Failed to set IP:\n{e}')
-        self.update_ip_config_display()
-
-    def open_manual_dialog(self, adapter):
-        dialog = ManualIPDialog(adapter, self)
-        dialog.exec_()
-        self.update_ip_config_display()
-
-    def update_ip_config_display(self):
-        adapter = self.adapter_combo.currentData()
-        if not adapter:
-            self.ip_config_label.setText('Current IP Configuration:\nNo adapter selected.')
-            return
-        ip_info = f'Current IP Configuration for {adapter.Description}:\n'
-        ip_addresses = adapter.IPAddress if adapter.IPAddress else ['Not set']
-        subnet_masks = adapter.IPSubnet if adapter.IPSubnet else ['Not set']
-        gateways = adapter.DefaultIPGateway if adapter.DefaultIPGateway else ['Not set']
-        ip_info += f'IP Address: {", ".join(ip_addresses)}\n'
-        ip_info += f'Subnet Mask: {", ".join(subnet_masks)}\n'
-        ip_info += f'Gateway: {", ".join(gateways)}'
-        self.ip_config_label.setText(ip_info)
-
-class ManualIPDialog(QDialog):
-    def __init__(self, adapter, parent=None):
-        super().__init__(parent)
-        self.adapter = adapter
-        self.setWindowTitle('Manual IP Configuration')
-        self.initUI()
-
-    def initUI(self):
-        layout = QGridLayout()
-
-        ip_label = QLabel('IP Address:')
-        self.ip_edits = [QLineEdit() for _ in range(4)]
-        ip_layout = QHBoxLayout()
-        for i, edit in enumerate(self.ip_edits):
-            edit.setFixedWidth(50)  # Increased width for visibility
-            edit.setMaxLength(3)
-            edit.setAlignment(Qt.AlignCenter)
-            ip_layout.addWidget(edit)
-            if i < 3:
-                ip_layout.addWidget(QLabel('.'))
-
-        subnet_label = QLabel('Subnet Mask:')
-        self.subnet_edits = [QLineEdit() for _ in range(4)]
-        subnet_layout = QHBoxLayout()
-        for i, edit in enumerate(self.subnet_edits):
-            edit.setFixedWidth(50)  # Increased width for visibility
-            edit.setMaxLength(3)
-            edit.setAlignment(Qt.AlignCenter)
-            subnet_layout.addWidget(edit)
-            if i < 3:
-                subnet_layout.addWidget(QLabel('.'))
-
-        gateway_label = QLabel('Gateway:')
-        self.gateway_edits = [QLineEdit() for _ in range(4)]
-        gateway_layout = QHBoxLayout()
-        for i, edit in enumerate(self.gateway_edits):
-            edit.setFixedWidth(50)  # Increased width for visibility
-            edit.setMaxLength(3)
-            edit.setAlignment(Qt.AlignCenter)
-            gateway_layout.addWidget(edit)
-            if i < 3:
-                gateway_layout.addWidget(QLabel('.'))
-
-        layout.addWidget(ip_label, 0, 0)
-        layout.addLayout(ip_layout, 0, 1)
-        layout.addWidget(subnet_label, 1, 0)
-        layout.addLayout(subnet_layout, 1, 1)
-        layout.addWidget(gateway_label, 2, 0)
-        layout.addLayout(gateway_layout, 2, 1)
-
-        self.ok_button = QPushButton('OK')
-        self.ok_button.clicked.connect(self.set_manual_ip)
-        layout.addWidget(self.ok_button, 3, 0, 1, 2)
-        self.setLayout(layout)
-
-    def set_manual_ip(self):
-        ip = '.'.join([edit.text() for edit in self.ip_edits])
-        subnet = '.'.join([edit.text() for edit in self.subnet_edits])
-        gateway = '.'.join([edit.text() for edit in self.gateway_edits])
-        if not ip or not subnet:
-            QMessageBox.warning(self, 'Error', 'IP and Subnet Mask are required.')
-            return
+    def run_command(self, command):
         try:
-            res1 = self.adapter.EnableStatic(IPAddress=[ip], SubnetMask=[subnet])
-            if gateway.strip('.'):
-                res2 = self.adapter.SetGateways(DefaultIPGateway=[gateway])
-            else:
-                res2 = self.adapter.SetGateways(DefaultIPGateway=[])
-            QMessageBox.information(self, 'Success', f'Adapter IP set to {ip}.')
-            self.accept()
+            result = subprocess.run(command, shell=True, capture_output=True, text=True)
+            return result.stdout + result.stderr
         except Exception as e:
-            QMessageBox.warning(self, 'Error', f'Failed to set IP:\n{e}')
+            return str(e)
 
-if __name__ == '__main__':
-    if not is_admin():
-        # Re-run the script with admin rights
-        ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", sys.executable, '"' + os.path.abspath(__file__) + '"', None, 1)
-        sys.exit()
+    def start_programming(self):
+        mac = self.mac_entry.get()
+        ip = self.ip_entry.get()
+        gateway = self.gateway_entry.get()
+        laptop_ip = self.laptop_ip_entry.get()
 
-    ip_schemes = {
-        "DHCP": "DHCP",
-        "Omnia": {"ip": "172.20.100.198", "subnet": "255.255.255.0", "gateway": "172.20.100.254"},
-        "SSOM": {"ip": "172.16.100.198", "subnet": "255.255.255.0", "gateway": "172.16.100.254"},
-        "Gilbarco 10.5 Subnet": {"ip": "10.5.55.201", "subnet": "255.255.255.0", "gateway": None},
-        "Veriphone": {"ip": "192.168.31.200", "subnet": "255.255.255.0", "gateway": None},
-        "Applause": {"ip": "10.5.60.198", "subnet": "255.255.255.0", "gateway": "10.5.60.1"},
-        "Veeder-Root": {"ip": "192.168.11.200", "subnet": "255.255.255.0", "gateway": None},
-        "Manual": "Manual"
-    }
+        if not (mac and ip and gateway and laptop_ip):
+            messagebox.showerror("Input Error", "Please fill in all fields.")
+            return
 
-    app = QApplication(sys.argv)
-    window = IPChanger()
-    window.show()
-    sys.exit(app.exec_())
+        # Step 3: Configure Laptop IP
+        self.log("Configuring laptop IP address...")
+        # Note: You might need admin privileges to run this command
+        command = f"netsh interface ip set address name=\"Ethernet\" static {laptop_ip} 255.255.255.0"
+        self.log(self.run_command(command))
+        
+        # Step 5: ARP Command
+        self.log("Adding ARP entry...")
+        command = f"arp -s {ip} {mac}"
+        self.log(self.run_command(command))
+        
+        # Step 6: Telnet to port 1
+        self.log("Testing connection to the card (port 1)...")
+        command = f"telnet {ip} 1"
+        result = self.run_command(command)
+        if "Could not open connection" in result:
+            self.log("Connection test successful.")
+        else:
+            self.log("Error: " + result)
+            self.log("Restarting process from Step 1.")
+            return
+        
+        # Step 7: Telnet to port 9999
+        self.log("Connecting to the card (port 9999)...")
+        command = f"telnet {ip} 9999"
+        self.log(self.run_command(command))
+        time.sleep(2)
+        
+        # Step 8-10: Program Sections 0 and 1
+        self.log("Programming section 0...")
+        # Assuming manual input is required here - this part can't be fully automated without more details
+        messagebox.showinfo("Manual Step", "Please complete section 0 and section 1 programming manually in the telnet session.")
+        
+        # Step 11: Telnet to port 10001
+        self.log("Connecting to the card (port 10001)...")
+        command = f"telnet {ip} 10001"
+        self.log(self.run_command(command))
+        
+        # Step 13: Inventory Levels
+        self.log("Retrieving inventory levels...")
+        # Note: Sending Ctrl+A, 200 might require a different approach in an actual telnet session
+        self.log("Type 'Ctrl+A, 200' in the telnet session to retrieve inventory levels.")
+        
+        self.log("Programming complete.")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = TCPIPProgrammer(root)
+    root.mainloop()

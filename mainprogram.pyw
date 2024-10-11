@@ -11,7 +11,7 @@ GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/s
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
-PROGRAMS_PATH = "C:\DevinsProgram\Programs"
+PROGRAMS_PATH = r"C:\DevinsProgram\Programs"
 UPDATED_MAIN_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updated_mainprogram.pyw")
 UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 
@@ -95,7 +95,7 @@ def update_main_program():
 def program_selection():
     ensure_directories()
     root = tk.Tk()
-    root.title("Devin'ss Program")
+    root.title("Devin's Program")
     root.geometry("800x600")
     root.configure(bg="#2e3f4f")
 

@@ -10,60 +10,14 @@ from datetime import datetime
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
-MAIN_PROGRAM_PATH = os.path.abspath(__file__)
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
-UPDATE_INFO_PATH = os.path.join(os.path.expanduser("~"), "DevinsProgram_update_info.json")
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
-CURRENT_VERSION = "v0.003"
 
 
 def ensure_directories():
     if not os.path.exists(PROGRAMS_PATH):
         os.makedirs(PROGRAMS_PATH)
-
-
-def get_latest_version(url):
-    response = requests.get(url)
-    if response.status_code == 200:
-        content = response.text
-        for line in content.splitlines():
-            if line.startswith("CURRENT_VERSION = "):
-                return line.split("= ")[1].strip().strip('"')
-    return None
-
-
-def sync_with_github():
-    latest_version = get_latest_version(MAIN_PROGRAM_URL)
-    if latest_version and latest_version > CURRENT_VERSION:
-        main_program_updated = download_and_update_main(latest_version)
-        if main_program_updated:
-            messagebox.showinfo("Update", f"Main program updated to version {latest_version}. Please open the app again.")
-
-    response = requests.get(GITHUB_REPO_URL)
-    if response.status_code == 200:
-        files = response.json()
-        existing_files = set(os.listdir(PROGRAMS_PATH))
-        github_files = set()
-        changes_made = []
-
-        for file in files:
-            if file['type'] == 'file' and file['name'].endswith('.pyw'):
-                github_files.add(file['name'])
-                if download_and_update_program(file):
-                    changes_made.append(f"Updated/Added subprogram: {file['name']}")
-
-        # Remove programs that are not in GitHub anymore
-        for local_file in existing_files - github_files:
-            os.remove(os.path.join(PROGRAMS_PATH, local_file))
-            changes_made.append(f"Deleted subprogram: {local_file}")
-
-        if changes_made:
-            messagebox.showinfo("Update", "Programs updated successfully:\n" + "\n".join(changes_made))
-        else:
-            messagebox.showinfo("Update", "Pulled update successfully, no updates needed.")
-    else:
-        messagebox.showerror("Error", "Failed to fetch programs from GitHub.")
 
 
 def update_subprograms():
@@ -72,22 +26,16 @@ def update_subprograms():
         files = response.json()
         changes_made = []
 
+        # Clear the PROGRAMS_PATH directory
+        for filename in os.listdir(PROGRAMS_PATH):
+            file_path = os.path.join(PROGRAMS_PATH, filename)
+            os.remove(file_path)
+
+        # Download all subprograms again
         for file in files:
             if file['type'] == 'file' and file['name'].endswith('.pyw'):
-                latest_version = get_latest_version(file['download_url'])
-                local_file_path = os.path.join(PROGRAMS_PATH, file['name'])
-                current_version = "v0.000"
-
-                if os.path.exists(local_file_path):
-                    with open(local_file_path, 'r') as f:
-                        for line in f:
-                            if line.startswith("CURRENT_VERSION = "):
-                                current_version = line.split("= ")[1].strip().strip('"')
-                                break
-
-                if latest_version and latest_version > current_version:
-                    if download_and_update_program(file):
-                        changes_made.append(f"Updated subprogram: {file['name']} to version {latest_version}")
+                if download_and_update_program(file):
+                    changes_made.append(f"Downloaded subprogram: {file['name']}")
 
         if changes_made:
             messagebox.showinfo("Update", "Subprograms updated successfully:\n" + "\n".join(changes_made))
@@ -101,28 +49,21 @@ def download_and_update_program(file):
     local_file_path = os.path.join(PROGRAMS_PATH, file['name'])
     download_url = file['download_url']
     content = requests.get(download_url).content
-    if not os.path.exists(local_file_path) or content != open(local_file_path, 'rb').read():
-        with open(local_file_path, 'wb') as f:
-            f.write(content)
-        return True
-    return False
+    with open(local_file_path, 'wb') as f:
+        f.write(content)
+    return True
 
 
-def download_and_update_main(latest_version):
+def update_main_program():
     content = requests.get(MAIN_PROGRAM_URL).content
-    if not os.path.exists(MAIN_PROGRAM_PATH) or content != open(MAIN_PROGRAM_PATH, 'rb').read():
-        with open(MAIN_PROGRAM_PATH, 'wb') as f:
-            f.write(content)
-        # Update the current version after successful download
-        global CURRENT_VERSION
-        CURRENT_VERSION = latest_version
-        return True
-    return False
+    with open(__file__, 'wb') as f:
+        f.write(content)
+    messagebox.showinfo("Update", "Main program updated successfully. Please reopen the application.")
 
 
 def program_selection():
     ensure_directories()
-    sync_with_github()  # Sync programs with GitHub on startup
+    update_subprograms()  # Sync programs with GitHub on startup
     root = tk.Tk()
     root.title("Devin's Program")
     root.geometry("800x600")
@@ -139,17 +80,17 @@ def program_selection():
         button = Button(root, text=program_display_name, bg="#2e3f4f", fg="white", command=lambda name=program_name: open_program(name))
         canvas.create_window(200, 150 + idx * 50, anchor="center", window=button)
 
-    # Add a button to check for updates
-    update_button = Button(root, text="Check for Updates", bg="#2e3f4f", fg="white", command=sync_with_github)
-    canvas.create_window(400, 500, anchor="center", window=update_button)
-
     # Add a button to update subprograms
     update_subprograms_button = Button(root, text="Update Subprograms", bg="#2e3f4f", fg="white", command=update_subprograms)
-    canvas.create_window(600, 500, anchor="center", window=update_subprograms_button)
+    canvas.create_window(400, 500, anchor="center", window=update_subprograms_button)
 
     # Add an AnyDesk button in the top right corner
     anydesk_button = Button(root, text="AnyDesk", bg="#2e3f4f", fg="white", command=open_anydesk)
     canvas.create_window(750, 50, anchor="ne", window=anydesk_button)
+
+    # Add an Update button in the top right corner
+    update_button = Button(root, text="Update", bg="#2e3f4f", fg="white", command=update_main_program)
+    canvas.create_window(650, 50, anchor="ne", window=update_button)
 
     root.mainloop()
 

@@ -40,7 +40,7 @@ def update_main_program():
 def program_selection():
     ensure_directories()
     root = tk.Tk()
-    root.title("Devin'ss Program")
+    root.title("Devin's Program")
     root.geometry("800x600")
     root.configure(bg="#2e3f4f")
 

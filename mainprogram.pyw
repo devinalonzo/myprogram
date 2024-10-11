@@ -7,7 +7,7 @@ import sys
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/"
 PROGRAMS_PATH = "C:\\DevinsProgram\\Programs"
-MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.py"
+MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
 MAIN_PROGRAM_PATH = os.path.abspath(__file__)
 
 

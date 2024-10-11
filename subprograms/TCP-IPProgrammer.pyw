@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import simpledialog, messagebox
 import time
 
+CURRENT_VERSION = "v0.001"
+
 def validate_ip(ip):
     ip_pattern = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
     if ip_pattern.match(ip):

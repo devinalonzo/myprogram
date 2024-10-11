@@ -15,6 +15,7 @@ ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATE_INFO_PATH = os.path.join(os.path.expanduser("~"), "DevinsProgram_update_info.json")
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
+CURRENT_VERSION = "v0.001"
 
 
 def ensure_directories():
@@ -22,47 +23,30 @@ def ensure_directories():
         os.makedirs(PROGRAMS_PATH)
 
 
-def get_last_update_time():
-    if os.path.exists(UPDATE_INFO_PATH):
-        with open(UPDATE_INFO_PATH, 'r') as f:
-            data = json.load(f)
-            return data.get('main_program_last_updated')
-    return None
-
-
-def save_last_update_time(commit_time):
-    data = {
-        'main_program_last_updated': commit_time
-    }
-    with open(UPDATE_INFO_PATH, 'w') as f:
-        json.dump(data, f)
-
-
-def get_latest_commit_time():
-    response = requests.get("https://api.github.com/repos/devinalonzo/myprogram/commits/main")
+def get_latest_version():
+    response = requests.get(MAIN_PROGRAM_URL)
     if response.status_code == 200:
-        commit_data = response.json()
-        return commit_data['commit']['committer']['date']
+        content = response.text
+        for line in content.splitlines():
+            if line.startswith("# Version: "):
+                return line.split(": ")[1].strip()
     return None
 
 
 def sync_with_github():
+    latest_version = get_latest_version()
+    if latest_version and latest_version > CURRENT_VERSION:
+        main_program_updated = download_and_update_main()
+        if main_program_updated:
+            messagebox.showinfo("Update", f"Main program updated to version {latest_version}. Restarting...")
+            os.execv(sys.executable, ['pythonw'] + sys.argv)
+
     response = requests.get(GITHUB_REPO_URL)
     if response.status_code == 200:
         files = response.json()
         existing_files = set(os.listdir(PROGRAMS_PATH))
         github_files = set()
         changes_made = []
-
-        latest_commit_time = get_latest_commit_time()
-        last_update_time = get_last_update_time()
-
-        main_program_updated = False
-        if latest_commit_time and (not last_update_time or latest_commit_time > last_update_time):
-            main_program_updated = download_and_update_main()
-            if main_program_updated:
-                save_last_update_time(latest_commit_time)
-                changes_made.append("Main program updated.")
 
         for file in files:
             if file['type'] == 'file' and file['name'].endswith('.pyw'):
@@ -75,14 +59,10 @@ def sync_with_github():
             os.remove(os.path.join(PROGRAMS_PATH, local_file))
             changes_made.append(f"Deleted subprogram: {local_file}")
 
-        if main_program_updated:
-            messagebox.showinfo("Update", "Main program updated. Restarting...")
-            os.execv(sys.executable, ['pythonw'] + sys.argv)
+        if changes_made:
+            messagebox.showinfo("Update", "Programs updated successfully:\n" + "\n".join(changes_made))
         else:
-            if changes_made:
-                messagebox.showinfo("Update", "Programs updated successfully:\n" + "\n".join(changes_made))
-            else:
-                messagebox.showinfo("Update", "Pulled update successfully, no updates needed.")
+            messagebox.showinfo("Update", "Pulled update successfully, no updates needed.")
     else:
         messagebox.showerror("Error", "Failed to fetch programs from GitHub.")
 
@@ -111,7 +91,7 @@ def program_selection():
     ensure_directories()
     sync_with_github()  # Sync programs with GitHub on startup
     root = tk.Tk()
-    root.title("Devin'sssss Program")
+    root.title("Devin's Program")
     root.geometry("800x600")
     root.configure(bg="#2e3f4f")
 

@@ -1,12 +1,11 @@
 import os
 import tkinter as tk
-from tkinter import messagebox, Button
+from tkinter import messagebox, Button, Label
 import urllib.request
 import requests
 import sys
 import shutil
-import json
-from datetime import datetime
+import subprocess
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
@@ -14,6 +13,7 @@ ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
 UPDATED_MAIN_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updated_mainprogram.pyw")
+UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 
 
 def ensure_directories():
@@ -21,50 +21,79 @@ def ensure_directories():
         os.makedirs(PROGRAMS_PATH)
 
 
-def update_subprograms():
+def create_updater():
+    updater_code = f"""
+import os
+import requests
+import tkinter as tk
+from tkinter import Label
+import time
+
+GITHUB_REPO_URL = "{GITHUB_REPO_URL}"
+MAIN_PROGRAM_URL = "{MAIN_PROGRAM_URL}"
+PROGRAMS_PATH = "{PROGRAMS_PATH}"
+MAIN_PROGRAM_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "mainprogram.pyw")
+
+
+def update():
+    root = tk.Tk()
+    root.title("Updater")
+    root.geometry("400x300")
+    label = Label(root, text="Starting update...")
+    label.pack(pady=20)
+    root.update()
+
+    # Update main program
+    label.config(text="Downloading main program...")
+    root.update()
+    content = requests.get(MAIN_PROGRAM_URL).content
+    with open(MAIN_PROGRAM_PATH, 'wb') as f:
+        f.write(content)
+    time.sleep(1)
+    label.config(text="Main program updated.")
+    root.update()
+
+    # Update subprograms
+    label.config(text="Downloading subprograms...")
+    root.update()
     response = requests.get(GITHUB_REPO_URL)
     if response.status_code == 200:
         files = response.json()
-        changes_made = []
-
         # Clear the PROGRAMS_PATH directory
         for filename in os.listdir(PROGRAMS_PATH):
             file_path = os.path.join(PROGRAMS_PATH, filename)
             os.remove(file_path)
-
         # Download all subprograms again
         for file in files:
             if file['type'] == 'file' and file['name'].endswith('.pyw'):
-                if download_and_update_program(file):
-                    changes_made.append(f"Downloaded subprogram: {file['name']}")
+                download_url = file['download_url']
+                content = requests.get(download_url).content
+                with open(os.path.join(PROGRAMS_PATH, file['name']), 'wb') as f:
+                    f.write(content)
+    time.sleep(1)
+    label.config(text="Subprograms updated.")
+    root.update()
 
-        if changes_made:
-            messagebox.showinfo("Update", "Subprograms updated successfully:\n" + "\n".join(changes_made))
-        else:
-            messagebox.showinfo("Update", "Pulled update successfully, no updates needed.")
-    else:
-        messagebox.showerror("Error", "Failed to fetch subprograms from GitHub.")
+    label.config(text="Update complete. Please restart the main program.")
+    root.update()
+    root.mainloop()
 
 
-def download_and_update_program(file):
-    local_file_path = os.path.join(PROGRAMS_PATH, file['name'])
-    download_url = file['download_url']
-    content = requests.get(download_url).content
-    with open(local_file_path, 'wb') as f:
-        f.write(content)
-    return True
+if __name__ == "__main__":
+    update()
+    """
+    with open(UPDATER_PATH, 'w') as f:
+        f.write(updater_code)
 
 
 def update_main_program():
-    content = requests.get(MAIN_PROGRAM_URL).content
-    with open(UPDATED_MAIN_PATH, 'wb') as f:
-        f.write(content)
-    messagebox.showinfo("Update", f"Main program updated successfully. The updated version has been saved to your desktop as 'updated_mainprogram.pyw'. Please replace the current script manually.")
+    create_updater()
+    subprocess.Popen([sys.executable, UPDATER_PATH])
+    sys.exit()
 
 
 def program_selection():
     ensure_directories()
-    update_subprograms()  # Sync programs with GitHub on startup
     root = tk.Tk()
     root.title("Devin's Program")
     root.geometry("800x600")

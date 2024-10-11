@@ -15,7 +15,7 @@ ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATE_INFO_PATH = os.path.join(os.path.expanduser("~"), "DevinsProgram_update_info.json")
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
-CURRENT_VERSION = "v0.001"
+CURRENT_VERSION = "v0.003"
 
 
 def ensure_directories():

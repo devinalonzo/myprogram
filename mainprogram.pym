@@ -7,6 +7,7 @@ import sys
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/"
 PROGRAMS_PATH = "C:\\DevinsProgram\\Programs"
+MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.py"
 MAIN_PROGRAM_PATH = os.path.abspath(__file__)
 
 
@@ -15,17 +16,26 @@ def ensure_directories():
         os.makedirs(PROGRAMS_PATH)
 
 
-def sync_with_github(check_main_program=False):
+def sync_with_github():
     response = requests.get(GITHUB_REPO_URL)
     if response.status_code == 200:
         files = response.json()
+        existing_files = set(os.listdir(PROGRAMS_PATH))
+        github_files = set()
         main_program_updated = False
+
         for file in files:
             if file['type'] == 'file' and file['name'].endswith('.py'):
-                if check_main_program and file['name'] == os.path.basename(MAIN_PROGRAM_PATH):
-                    main_program_updated = download_and_update_main(file)
+                github_files.add(file['name'])
+                if file['name'] == os.path.basename(MAIN_PROGRAM_PATH):
+                    main_program_updated = download_and_update_main()
                 else:
                     download_and_update_program(file)
+
+        # Remove programs that are not in GitHub anymore
+        for local_file in existing_files - github_files:
+            os.remove(os.path.join(PROGRAMS_PATH, local_file))
+
         if main_program_updated:
             messagebox.showinfo("Update", "Main program updated. Restarting...")
             os.execv(sys.executable, ['python'] + sys.argv)
@@ -43,9 +53,8 @@ def download_and_update_program(file):
         f.write(content)
 
 
-def download_and_update_main(file):
-    download_url = file['download_url']
-    content = requests.get(download_url).content
+def download_and_update_main():
+    content = requests.get(MAIN_PROGRAM_URL).content
     with open(MAIN_PROGRAM_PATH, 'wb') as f:
         f.write(content)
     return True
@@ -70,7 +79,7 @@ def program_selection():
         canvas.create_window(200, 150 + idx * 50, anchor="center", window=button)
 
     # Add a button to check for updates
-    update_button = Button(root, text="Check for Updates", bg="#2e3f4f", fg="white", command=lambda: sync_with_github(check_main_program=True))
+    update_button = Button(root, text="Check for Updates", bg="#2e3f4f", fg="white", command=sync_with_github)
     canvas.create_window(400, 500, anchor="center", window=update_button)
 
     root.mainloop()

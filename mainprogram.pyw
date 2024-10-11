@@ -46,12 +46,16 @@ def update():
     # Update main program
     label.config(text="Downloading main program...")
     root.update()
-    content = requests.get(MAIN_PROGRAM_URL).content
-    with open(MAIN_PROGRAM_PATH, 'wb') as f:
-        f.write(content)
-    time.sleep(1)
-    label.config(text="Main program updated.")
+    response = requests.get(MAIN_PROGRAM_URL)
+    if response.status_code == 200:
+        content = response.content
+        with open(MAIN_PROGRAM_PATH, 'wb') as f:
+            f.write(content)
+        label.config(text="Main program updated.")
+    else:
+        label.config(text=f"Failed to download main program. Status code: {response.status_code}")
     root.update()
+    time.sleep(1)
 
     # Update subprograms
     label.config(text="Downloading subprograms...")
@@ -59,17 +63,29 @@ def update():
     response = requests.get(GITHUB_REPO_URL)
     if response.status_code == 200:
         files = response.json()
+        print("Files fetched from GitHub:", files)  # Debugging statement
+
         # Clear the PROGRAMS_PATH directory
         for filename in os.listdir(PROGRAMS_PATH):
             file_path = os.path.join(PROGRAMS_PATH, filename)
             os.remove(file_path)
+
         # Download all subprograms again
         for file in files:
-            if file['type'] == 'file' and file['name'].endswith('.pyw'):
+            if file['type'] == 'file':
                 download_url = file['download_url']
-                content = requests.get(download_url).content
-                with open(os.path.join(PROGRAMS_PATH, file['name']), 'wb') as f:
-                    f.write(content)
+                print("Downloading from URL:", download_url)  # Debugging statement
+                response = requests.get(download_url)
+                if response.status_code == 200:
+                    content = response.content
+                    with open(os.path.join(PROGRAMS_PATH, file['name']), 'wb') as f:
+                        f.write(content)
+                    print(f"Downloaded: {file['name']}")
+                else:
+                    print(f"Failed to download {file['name']}, status code: {response.status_code}")
+    else:
+        print(f"Failed to fetch subprograms, status code: {response.status_code}")
+
     time.sleep(1)
     label.config(text="Subprograms updated.")
     root.update()

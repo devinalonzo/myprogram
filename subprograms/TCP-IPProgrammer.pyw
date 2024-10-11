@@ -33,6 +33,9 @@ class IPChanger(QWidget):
         adapter_layout.addWidget(self.adapter_combo)
         adapter_layout.addWidget(self.refresh_button)
 
+        # Connect adapter selection change to update IP info
+        self.adapter_combo.currentIndexChanged.connect(self.update_ip_config_display)
+
         # IP Scheme selection
         scheme_label = QLabel('Select what IP Scheme you would like to set:')
         self.scheme_group = QButtonGroup()
@@ -51,6 +54,7 @@ class IPChanger(QWidget):
 
         # IP Configuration display
         self.ip_config_label = QLabel('Current IP Configuration:\n')
+        self.ip_config_label.setStyleSheet("QLabel { background-color : lightgrey; padding: 5px; }")
 
         # Main layout
         main_layout = QVBoxLayout()
@@ -63,11 +67,13 @@ class IPChanger(QWidget):
         self.setLayout(main_layout)
 
     def load_adapters(self):
+        self.adapter_combo.blockSignals(True)  # Prevent signals during loading
         self.adapter_combo.clear()
         c = wmi.WMI()
         adapters = c.Win32_NetworkAdapterConfiguration(IPEnabled=True)
         for adapter in adapters:
             self.adapter_combo.addItem(adapter.Description, adapter)
+        self.adapter_combo.blockSignals(False)
         self.update_ip_config_display()
 
     def apply_settings(self):
@@ -87,7 +93,6 @@ class IPChanger(QWidget):
             self.open_manual_dialog(adapter)
         else:
             self.set_ip(adapter, selected_scheme)
-            self.update_ip_config_display()
 
     def set_ip(self, adapter, scheme_name):
         if scheme_name == 'DHCP':
@@ -149,8 +154,9 @@ class ManualIPDialog(QDialog):
         self.ip_edits = [QLineEdit() for _ in range(4)]
         ip_layout = QHBoxLayout()
         for i, edit in enumerate(self.ip_edits):
-            edit.setFixedWidth(40)
+            edit.setFixedWidth(50)  # Increased width for visibility
             edit.setMaxLength(3)
+            edit.setAlignment(Qt.AlignCenter)
             ip_layout.addWidget(edit)
             if i < 3:
                 ip_layout.addWidget(QLabel('.'))
@@ -159,8 +165,9 @@ class ManualIPDialog(QDialog):
         self.subnet_edits = [QLineEdit() for _ in range(4)]
         subnet_layout = QHBoxLayout()
         for i, edit in enumerate(self.subnet_edits):
-            edit.setFixedWidth(40)
+            edit.setFixedWidth(50)  # Increased width for visibility
             edit.setMaxLength(3)
+            edit.setAlignment(Qt.AlignCenter)
             subnet_layout.addWidget(edit)
             if i < 3:
                 subnet_layout.addWidget(QLabel('.'))
@@ -169,8 +176,9 @@ class ManualIPDialog(QDialog):
         self.gateway_edits = [QLineEdit() for _ in range(4)]
         gateway_layout = QHBoxLayout()
         for i, edit in enumerate(self.gateway_edits):
-            edit.setFixedWidth(40)
+            edit.setFixedWidth(50)  # Increased width for visibility
             edit.setMaxLength(3)
+            edit.setAlignment(Qt.AlignCenter)
             gateway_layout.addWidget(edit)
             if i < 3:
                 gateway_layout.addWidget(QLabel('.'))

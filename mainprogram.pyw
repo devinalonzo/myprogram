@@ -66,7 +66,7 @@ def program_selection():
     ensure_directories()
     update_subprograms()  # Sync programs with GitHub on startup
     root = tk.Tk()
-    root.title("Devin'sssss Program")
+    root.title("Devin's Program")
     root.geometry("800x600")
     root.configure(bg="#2e3f4f")
 

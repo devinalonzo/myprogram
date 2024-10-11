@@ -25,19 +25,17 @@ def sync_with_github():
         files = response.json()
         existing_files = set(os.listdir(PROGRAMS_PATH))
         github_files = set()
-        main_program_updated = False
+        main_program_updated = download_and_update_main()
         changes_made = []
+
+        if main_program_updated:
+            changes_made.append("Main program updated.")
 
         for file in files:
             if file['type'] == 'file' and file['name'].endswith('.pyw'):
                 github_files.add(file['name'])
-                if file['name'] == os.path.basename(MAIN_PROGRAM_PATH):
-                    main_program_updated = download_and_update_main()
-                    if main_program_updated:
-                        changes_made.append("Main program updated.")
-                else:
-                    if download_and_update_program(file):
-                        changes_made.append(f"Updated/Added subprogram: {file['name']}")
+                if download_and_update_program(file):
+                    changes_made.append(f"Updated/Added subprogram: {file['name']}")
 
         # Remove programs that are not in GitHub anymore
         for local_file in existing_files - github_files:
@@ -69,7 +67,7 @@ def download_and_update_program(file):
 
 def download_and_update_main():
     content = requests.get(MAIN_PROGRAM_URL).content
-    if content != open(MAIN_PROGRAM_PATH, 'rb').read():
+    if not os.path.exists(MAIN_PROGRAM_PATH) or content != open(MAIN_PROGRAM_PATH, 'rb').read():
         with open(MAIN_PROGRAM_PATH, 'wb') as f:
             f.write(content)
         return True

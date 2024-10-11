@@ -28,8 +28,8 @@ def get_latest_version():
     if response.status_code == 200:
         content = response.text
         for line in content.splitlines():
-            if line.startswith("# Version: "):
-                return line.split(": ")[1].strip()
+            if line.startswith("CURRENT_VERSION = "):
+                return line.split("= ")[1].strip().strip('"')
     return None
 
 

@@ -1,34 +1,3 @@
-import os
-import tkinter as tk
-from tkinter import messagebox, Button, Label
-import urllib.request
-import requests
-import sys
-import shutil
-import subprocess
-import time
-
-GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
-MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
-ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
-ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
-PROGRAMS_PATH = r"C:\DevinsProgram\Programs"
-UPDATER_PATH = os.path.join(PROGRAMS_PATH, 'updater.pyw')
-LOG_FILE_PATH = os.path.join(r"C:\DevinsProgram", "logs.txt")
-
-
-def ensure_directories():
-    if not os.path.exists(PROGRAMS_PATH):
-        os.makedirs(PROGRAMS_PATH)
-    if not os.path.exists(os.path.dirname(LOG_FILE_PATH)):
-        os.makedirs(os.path.dirname(LOG_FILE_PATH))
-
-
-def log_message(message):
-    with open(LOG_FILE_PATH, 'a') as log_file:
-        log_file.write(f"{message}\n")
-
-
 def create_updater():
     updater_code = f"""
 import os
@@ -46,7 +15,9 @@ LOG_FILE_PATH = r"{LOG_FILE_PATH}"
 
 def log_message(message):
     with open(LOG_FILE_PATH, 'a') as log_file:
-        log_file.write(f"{message}\n")
+        log_file.write(f"{message}
+")
+    print(message)  # Print to console for easier debugging
 
 
 def update():
@@ -122,11 +93,13 @@ if __name__ == "__main__":
     """
     with open(UPDATER_PATH, 'w') as f:
         f.write(updater_code)
+    with open(UPDATER_PATH, 'w') as f:
+        f.write(updater_code)
 
 
 def update_main_program():
     create_updater()
-    subprocess.Popen([sys.executable, UPDATER_PATH])
+    subprocess.Popen([sys.executable, UPDATER_PATH], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     sys.exit()
 
 

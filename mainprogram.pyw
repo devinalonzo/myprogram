@@ -1,3 +1,25 @@
+import os
+import tkinter as tk
+from tkinter import messagebox, Button, Label
+import urllib.request
+import requests
+import sys
+import shutil
+import subprocess
+
+GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
+MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
+ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
+ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
+PROGRAMS_PATH = r"C:\DevinsProgram\Programs"
+UPDATER_PATH = os.path.join(PROGRAMS_PATH, 'updater.pyw')
+
+
+def ensure_directories():
+    if not os.path.exists(PROGRAMS_PATH):
+        os.makedirs(PROGRAMS_PATH)
+
+
 def create_updater():
     updater_code = f"""
 import os
@@ -59,8 +81,6 @@ def update():
 if __name__ == "__main__":
     update()
     """
-    with open(UPDATER_PATH, 'w') as f:
-        f.write(updater_code)
     with open(UPDATER_PATH, 'w') as f:
         f.write(updater_code)
 

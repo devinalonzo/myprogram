@@ -15,7 +15,7 @@ ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATE_INFO_PATH = os.path.join(os.path.expanduser("~"), "DevinsProgram_update_info.json")
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
-CURRENT_VERSION = "v0.002"
+CURRENT_VERSION = "v0.001"
 
 
 def ensure_directories():
@@ -23,8 +23,8 @@ def ensure_directories():
         os.makedirs(PROGRAMS_PATH)
 
 
-def get_latest_version():
-    response = requests.get(MAIN_PROGRAM_URL)
+def get_latest_version(url):
+    response = requests.get(url)
     if response.status_code == 200:
         content = response.text
         for line in content.splitlines():
@@ -34,12 +34,11 @@ def get_latest_version():
 
 
 def sync_with_github():
-    latest_version = get_latest_version()
+    latest_version = get_latest_version(MAIN_PROGRAM_URL)
     if latest_version and latest_version > CURRENT_VERSION:
         main_program_updated = download_and_update_main(latest_version)
         if main_program_updated:
-            messagebox.showinfo("Update", f"Main program updated to version {latest_version}. Restarting...")
-            os.execv(sys.executable, ['pythonw'] + sys.argv)
+            messagebox.showinfo("Update", f"Main program updated to version {latest_version}. Please open the app again.")
 
     response = requests.get(GITHUB_REPO_URL)
     if response.status_code == 200:
@@ -65,6 +64,37 @@ def sync_with_github():
             messagebox.showinfo("Update", "Pulled update successfully, no updates needed.")
     else:
         messagebox.showerror("Error", "Failed to fetch programs from GitHub.")
+
+
+def update_subprograms():
+    response = requests.get(GITHUB_REPO_URL)
+    if response.status_code == 200:
+        files = response.json()
+        changes_made = []
+
+        for file in files:
+            if file['type'] == 'file' and file['name'].endswith('.pyw'):
+                latest_version = get_latest_version(file['download_url'])
+                local_file_path = os.path.join(PROGRAMS_PATH, file['name'])
+                current_version = "v0.000"
+
+                if os.path.exists(local_file_path):
+                    with open(local_file_path, 'r') as f:
+                        for line in f:
+                            if line.startswith("CURRENT_VERSION = "):
+                                current_version = line.split("= ")[1].strip().strip('"')
+                                break
+
+                if latest_version and latest_version > current_version:
+                    if download_and_update_program(file):
+                        changes_made.append(f"Updated subprogram: {file['name']} to version {latest_version}")
+
+        if changes_made:
+            messagebox.showinfo("Update", "Subprograms updated successfully:\n" + "\n".join(changes_made))
+        else:
+            messagebox.showinfo("Update", "Pulled update successfully, no updates needed.")
+    else:
+        messagebox.showerror("Error", "Failed to fetch subprograms from GitHub.")
 
 
 def download_and_update_program(file):
@@ -94,7 +124,7 @@ def program_selection():
     ensure_directories()
     sync_with_github()  # Sync programs with GitHub on startup
     root = tk.Tk()
-    root.title("Devin'sssss Program")
+    root.title("Devin's Program")
     root.geometry("800x600")
     root.configure(bg="#2e3f4f")
 
@@ -112,6 +142,10 @@ def program_selection():
     # Add a button to check for updates
     update_button = Button(root, text="Check for Updates", bg="#2e3f4f", fg="white", command=sync_with_github)
     canvas.create_window(400, 500, anchor="center", window=update_button)
+
+    # Add a button to update subprograms
+    update_subprograms_button = Button(root, text="Update Subprograms", bg="#2e3f4f", fg="white", command=update_subprograms)
+    canvas.create_window(600, 500, anchor="center", window=update_subprograms_button)
 
     # Add an AnyDesk button in the top right corner
     anydesk_button = Button(root, text="AnyDesk", bg="#2e3f4f", fg="white", command=open_anydesk)

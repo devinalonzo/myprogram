@@ -5,18 +5,45 @@ import urllib.request
 import requests
 import sys
 import shutil
+import json
+from datetime import datetime
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
-PROGRAMS_PATH = "C:\DevinsProgram\Programs"
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
 MAIN_PROGRAM_PATH = os.path.abspath(__file__)
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
+UPDATE_INFO_PATH = os.path.join(os.path.expanduser("~"), "DevinsProgram_update_info.json")
+PROGRAMS_PATH = "C:\DevinsProgram\Programs"
 
 
 def ensure_directories():
     if not os.path.exists(PROGRAMS_PATH):
         os.makedirs(PROGRAMS_PATH)
+
+
+def get_last_update_time():
+    if os.path.exists(UPDATE_INFO_PATH):
+        with open(UPDATE_INFO_PATH, 'r') as f:
+            data = json.load(f)
+            return data.get('main_program_last_updated')
+    return None
+
+
+def save_last_update_time(commit_time):
+    data = {
+        'main_program_last_updated': commit_time
+    }
+    with open(UPDATE_INFO_PATH, 'w') as f:
+        json.dump(data, f)
+
+
+def get_latest_commit_time():
+    response = requests.get("https://api.github.com/repos/devinalonzo/myprogram/commits/main")
+    if response.status_code == 200:
+        commit_data = response.json()
+        return commit_data['commit']['committer']['date']
+    return None
 
 
 def sync_with_github():
@@ -25,11 +52,17 @@ def sync_with_github():
         files = response.json()
         existing_files = set(os.listdir(PROGRAMS_PATH))
         github_files = set()
-        main_program_updated = download_and_update_main()
         changes_made = []
 
-        if main_program_updated:
-            changes_made.append("Main program updated.")
+        latest_commit_time = get_latest_commit_time()
+        last_update_time = get_last_update_time()
+
+        main_program_updated = False
+        if latest_commit_time and (not last_update_time or latest_commit_time > last_update_time):
+            main_program_updated = download_and_update_main()
+            if main_program_updated:
+                save_last_update_time(latest_commit_time)
+                changes_made.append("Main program updated.")
 
         for file in files:
             if file['type'] == 'file' and file['name'].endswith('.pyw'):
@@ -78,7 +111,7 @@ def program_selection():
     ensure_directories()
     sync_with_github()  # Sync programs with GitHub on startup
     root = tk.Tk()
-    root.title("Devin'ssssss Program")
+    root.title("Devin's Program")
     root.geometry("800x600")
     root.configure(bg="#2e3f4f")
 

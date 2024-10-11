@@ -110,10 +110,6 @@ def program_selection():
         button = Button(root, text=program_display_name, bg="#2e3f4f", fg="white", command=lambda name=program_name: open_program(name))
         canvas.create_window(200, 150 + idx * 50, anchor="center", window=button)
 
-    # Add a button to update subprograms
-    update_subprograms_button = Button(root, text="Update Subprograms", bg="#2e3f4f", fg="white", command=update_subprograms)
-    canvas.create_window(400, 500, anchor="center", window=update_subprograms_button)
-
     # Add an AnyDesk button in the top right corner
     anydesk_button = Button(root, text="AnyDesk", bg="#2e3f4f", fg="white", command=open_anydesk)
     canvas.create_window(750, 50, anchor="ne", window=anydesk_button)

@@ -6,7 +6,7 @@ import requests
 import sys
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/"
-PROGRAMS_PATH = "C:\\DevinsProgram\\Programs"
+PROGRAMS_PATH = "C:\DevinsProgram\Programs"
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
 MAIN_PROGRAM_PATH = os.path.abspath(__file__)
 
@@ -25,7 +25,7 @@ def sync_with_github():
         main_program_updated = False
 
         for file in files:
-            if file['type'] == 'file' and file['name'].endswith('.py'):
+            if file['type'] == 'file' and file['name'].endswith('.pyw'):
                 github_files.add(file['name'])
                 if file['name'] == os.path.basename(MAIN_PROGRAM_PATH):
                     main_program_updated = download_and_update_main()
@@ -38,7 +38,7 @@ def sync_with_github():
 
         if main_program_updated:
             messagebox.showinfo("Update", "Main program updated. Restarting...")
-            os.execv(sys.executable, ['python'] + sys.argv)
+            os.execv(sys.executable, ['pythonw'] + sys.argv)
         else:
             messagebox.showinfo("Update", "Programs updated successfully.")
     else:
@@ -64,7 +64,7 @@ def program_selection():
     ensure_directories()
     sync_with_github()  # Sync programs with GitHub on startup
     root = tk.Tk()
-    root.title("Devins TCPIP Programmer - Program Selection")
+    root.title("Devin's Program")
     root.geometry("800x600")
     root.configure(bg="#2e3f4f")
 

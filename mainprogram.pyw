@@ -13,6 +13,7 @@ MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
+UPDATED_MAIN_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updated_mainprogram.pyw")
 
 
 def ensure_directories():
@@ -56,16 +57,16 @@ def download_and_update_program(file):
 
 def update_main_program():
     content = requests.get(MAIN_PROGRAM_URL).content
-    with open(__file__, 'wb') as f:
+    with open(UPDATED_MAIN_PATH, 'wb') as f:
         f.write(content)
-    messagebox.showinfo("Update", "Main program updated successfully. Please reopen the application.")
+    messagebox.showinfo("Update", f"Main program updated successfully. The updated version has been saved to your desktop as 'updated_mainprogram.pyw'. Please replace the current script manually.")
 
 
 def program_selection():
     ensure_directories()
     update_subprograms()  # Sync programs with GitHub on startup
     root = tk.Tk()
-    root.title("Devin'sssss Program")
+    root.title("Devin's Program")
     root.geometry("800x600")
     root.configure(bg="#2e3f4f")
 

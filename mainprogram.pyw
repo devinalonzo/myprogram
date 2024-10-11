@@ -15,7 +15,7 @@ ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATE_INFO_PATH = os.path.join(os.path.expanduser("~"), "DevinsProgram_update_info.json")
 PROGRAMS_PATH = "C:\DevinsProgram\Programs"
-CURRENT_VERSION = "v0.002"
+CURRENT_VERSION = "v0.001"
 
 
 def ensure_directories():
@@ -36,7 +36,7 @@ def get_latest_version():
 def sync_with_github():
     latest_version = get_latest_version()
     if latest_version and latest_version > CURRENT_VERSION:
-        main_program_updated = download_and_update_main()
+        main_program_updated = download_and_update_main(latest_version)
         if main_program_updated:
             messagebox.showinfo("Update", f"Main program updated to version {latest_version}. Restarting...")
             os.execv(sys.executable, ['pythonw'] + sys.argv)
@@ -78,11 +78,14 @@ def download_and_update_program(file):
     return False
 
 
-def download_and_update_main():
+def download_and_update_main(latest_version):
     content = requests.get(MAIN_PROGRAM_URL).content
     if not os.path.exists(MAIN_PROGRAM_PATH) or content != open(MAIN_PROGRAM_PATH, 'rb').read():
         with open(MAIN_PROGRAM_PATH, 'wb') as f:
             f.write(content)
+        # Update the current version after successful download
+        global CURRENT_VERSION
+        CURRENT_VERSION = latest_version
         return True
     return False
 

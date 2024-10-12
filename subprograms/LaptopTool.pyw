@@ -2,7 +2,7 @@ import os
 import webbrowser
 import ctypes
 
-# Define the paths
+# Define the path to the executable
 exe_path = r"C:\gilbarco\NGD\bin\LaptopTool.exe"
 installer_url = "https://interactive.gilbarco.com/apps/tech_resource/laptop/files/dialog_singleclick_v20_0_20.exe"
 
@@ -20,6 +20,6 @@ else:
     print("LaptopTool.exe not found. Opening installer link in web browser...")
     webbrowser.open(installer_url)
     show_message_box(
-        "Installer Needed",
-        "When the download is complete, please open it and enter your credentials for signing into GOLD Docs. For the modifier enter 'blink' - without \" \". Then click 'UPDATE FILES'. This will install the NGD Laptop tool for you that will allow you to pull pump (PCN) logs, update door nodes, etc. After the installation is completed, click the LaptopTool button again to run."
+        "Download Required",
+        "When the download is complete, please right click and open it with ADMIN rights and enter your credentials for signing into GOLD Docs. For the modifier enter 'blink' - without ' '. Then click 'UPDATE FILES'. This will install the NGD Laptop tool for you that will allow you to pull pump (PCN) logs, update door nodes, etc. After the installation is completed, click the LaptopTool button again to run."
     )

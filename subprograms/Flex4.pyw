@@ -2,6 +2,7 @@ import os
 import subprocess
 import webbrowser
 import ctypes
+from tkinter import simpledialog, Tk
 
 # Define the paths
 exe_path = os.path.join(os.path.expanduser('~'), 'Gilbarco', 'M7MaintenanceTool', 'M7MaintenanceTool-1.4.6.jar')
@@ -18,16 +19,12 @@ def run_as_admin(command):
 
 # Function to get the number of instances to run
 def get_instance_count():
-    while True:
-        try:
-            user_input = ctypes.windll.user32.MessageBoxW(0, "Enter the number of instances you want to open (1-10):", "Number of Instances", 1)
-            instance_count = int(user_input)
-            if 1 <= instance_count <= 10:
-                return instance_count
-            else:
-                ctypes.windll.user32.MessageBoxW(0, "Please enter a valid number between 1 and 10.", "Invalid Input", 0)
-        except ValueError:
-            ctypes.windll.user32.MessageBoxW(0, "Please enter a valid number.", "Invalid Input", 0)
+    root = Tk()
+    root.withdraw()  # Hide the root window
+    user_input = simpledialog.askinteger("Number of Instances", "Enter the number of instances you want to open (1-10):")
+    if user_input is None or not (1 <= user_input <= 10):
+        return 1
+    return user_input
 
 # Check if the executable exists
 if os.path.exists(exe_path):

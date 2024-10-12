@@ -8,6 +8,15 @@ def list_serial_ports():
     ports = serial.tools.list_ports.comports()
     return [port.device for port in ports]
 
+# Function to refresh the list of available serial ports
+def refresh_ports(port_dropdown):
+    available_ports = list_serial_ports()
+    port_dropdown['values'] = available_ports
+    if available_ports:
+        port_dropdown.current(0)  # Select the first available port by default
+    else:
+        port_dropdown.set('')  # Clear selection if no ports are available
+
 # Function to send commands to the selected serial port
 def send_serial_commands(port):
     try:
@@ -26,7 +35,8 @@ def send_serial_commands(port):
         for command in commands:
             ser.write((command + "\n").encode())  # Send command
             response = ser.readline().decode('utf-8').strip()  # Read response
-            result += f"Sent: {command}, Received: {response}\n"
+            if response:  # Only append non-empty responses
+                result += f"{response}\n"
 
         # Display result in new window
         display_result(result)
@@ -57,7 +67,14 @@ def main():
     port_var = tk.StringVar()
     port_dropdown = ttk.Combobox(root, textvariable=port_var, values=available_ports, state="readonly")
     port_dropdown.pack(pady=5)
+
+    if available_ports:
+        port_dropdown.current(0)  # Set default selection if ports are available
     
+    # Refresh button to update the list of ports
+    refresh_button = tk.Button(root, text="Refresh Ports", command=lambda: refresh_ports(port_dropdown))
+    refresh_button.pack(pady=5)
+
     # Button to send commands
     send_button = tk.Button(root, text="Send Commands", command=lambda: send_serial_commands(port_var.get()))
     send_button.pack(pady=10)

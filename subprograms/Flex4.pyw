@@ -5,9 +5,9 @@ import ctypes
 import shutil
 
 # Define the paths
-exe_path = r"C:\Users\user\Gilbarco\M7MaintenanceTool\M7MaintenanceTool-1.4.6.jar"
+exe_path = os.path.join(os.path.expanduser('~'), 'Gilbarco', 'M7MaintenanceTool', 'M7MaintenanceTool-1.4.6.jar')
 installer_url = "https://interactive.gilbarco.com/apps/tech_resource/laptop/FlexPayIV/FlexPayIVMaintenanceTool/M7MaintenanceTool-1.4.6-r38108-install.exe"
-bat_path = r"C:\Users\user\Gilbarco\M7MaintenanceTool\M7_MaintenanceRun.bat"
+bat_path = os.path.join(os.path.expanduser('~'), 'Gilbarco', 'M7MaintenanceTool', 'M7_MaintenanceRun.bat')
 shortcut_path = os.path.join(os.path.expanduser("~"), "Desktop", "Flex 4 M7Tool.lnk")
 
 # Function to show a message box

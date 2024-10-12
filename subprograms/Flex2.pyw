@@ -14,4 +14,5 @@ if os.path.exists(exe_path):
 else:
     # If not found, open the installer link in the default web browser
     print("FlexPayMaintenance.exe not found. Opening installer link in web browser...")
+    print("The installer will be downloaded. Please follow the instructions to install FlexPay Maintenance. After installation, please click 'Flex 2' again to launch the application.")
     webbrowser.open(installer_url)

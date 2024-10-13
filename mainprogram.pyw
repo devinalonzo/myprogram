@@ -1,21 +1,36 @@
 import os
 import requests
 import tkinter as tk
-from tkinter import messagebox, Button
+from tkinter import messagebox, Button, PhotoImage
 import subprocess
 import sys
+from PIL import Image, ImageTk
 
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
+BACKGROUND_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/bkgd.png"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 PROGRAMS_PATH = r"C:\DevinsProgram\Programs"
 UPDATER_PATH = r"C:\DevinsProgram\updater.pyw"
 UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
+BACKGROUND_PATH = os.path.join(r"C:\DevinsProgram", "bkgd.png")
 
 
 def ensure_directories():
     if not os.path.exists(PROGRAMS_PATH):
         os.makedirs(PROGRAMS_PATH)
+
+
+def download_background():
+    response = requests.get(BACKGROUND_URL)
+    if response.status_code == 200:
+        content = response.content
+        with open(BACKGROUND_PATH, 'wb') as f:
+            f.write(content)
+    else:
+        messagebox.showerror("Error", "Failed to download background image. Please check your internet connection and try again.")
+        return False
+    return True
 
 
 def download_updater():
@@ -39,28 +54,43 @@ def update_main_program():
 
 def program_selection():
     ensure_directories()
+    if not os.path.exists(BACKGROUND_PATH):
+        download_background()
+
     root = tk.Tk()
     root.title("Devin's Program")
     root.geometry("800x600")
-    root.configure(bg="#2e3f4f")
+
+    # Load the background image
+    background_image = Image.open(BACKGROUND_PATH)
+    background_photo = ImageTk.PhotoImage(background_image)
+
+    # Set the background
+    background_label = tk.Label(root, image=background_photo)
+    background_label.place(relwidth=1, relheight=1)
 
     # Create Canvas for custom theme and background
-    canvas = tk.Canvas(root, width=800, height=600, bg="#2e3f4f")
-    canvas.pack()
+    canvas = tk.Canvas(root, width=800, height=600, bg="#2e3f4f", highlightthickness=0)
+    canvas.place(relwidth=1, relheight=1)
+
+    # Style adjustments for readability
+    button_bg = "#4e5d6c"  # Slightly lighter than background
+    button_fg = "#ffffff"  # White text for contrast
+    button_font = ("Helvetica", 12, "bold")
 
     # Add buttons for programs from GitHub
     programs = os.listdir(PROGRAMS_PATH)
     for idx, program_name in enumerate(programs):
         program_display_name = os.path.splitext(program_name)[0]  # Remove extension from button label
-        button = Button(root, text=program_display_name, bg="#2e3f4f", fg="white", command=lambda name=program_name: open_program(name))
-        canvas.create_window(200, 150 + idx * 50, anchor="center", window=button)
+        button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font, command=lambda name=program_name: open_program(name))
+        canvas.create_window(400, 150 + idx * 50, anchor="center", window=button)
 
     # Add an AnyDesk button in the top right corner
-    anydesk_button = Button(root, text="AnyDesk", bg="#2e3f4f", fg="white", command=open_anydesk)
+    anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font, command=open_anydesk)
     canvas.create_window(750, 50, anchor="ne", window=anydesk_button)
 
     # Add an Update button in the top right corner
-    update_button = Button(root, text="Update", bg="#2e3f4f", fg="white", command=update_main_program)
+    update_button = Button(root, text="Update", bg=button_bg, fg=button_fg, font=button_font, command=update_main_program)
     canvas.create_window(650, 50, anchor="ne", window=update_button)
 
     root.mainloop()

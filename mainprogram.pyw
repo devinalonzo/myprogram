@@ -10,14 +10,11 @@ from PIL import Image, ImageTk
 GITHUB_RELEASES_URL = "https://api.github.com/repos/devinalonzo/myprogram/releases/latest"
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
-UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
-UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 
 # Helper function to resolve paths whether running from script or EXE
 def resource_path(relative_path):
     """ Get the absolute path to the resource, works for PyInstaller bundled files """
     if hasattr(sys, '_MEIPASS'):
-        # If running as a bundled EXE, resources are in the _MEIPASS directory
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
@@ -32,9 +29,9 @@ def fetch_latest_version():
         response = requests.get(GITHUB_RELEASES_URL)
         if response.status_code == 200:
             latest_release = response.json()
-            return latest_release["tag_name"], latest_release["html_url"]  # Return version and release URL
+            return latest_release["tag_name"], latest_release["html_url"]
         else:
-            return "BETA", None  # If no releases found, return BETA
+            return "BETA", None
     except Exception as e:
         print(f"Error fetching latest version: {e}")
         return "BETA", None
@@ -42,25 +39,7 @@ def fetch_latest_version():
 # Load the version dynamically during runtime
 CURRENT_VERSION, release_url = fetch_latest_version()
 
-# Download the updater script from GitHub
-def download_updater():
-    response = requests.get(UPDATER_URL)
-    if response.status_code == 200:
-        with open(UPDATER_PATH, 'wb') as f:
-            f.write(response.content)
-    else:
-        messagebox.showerror("Error", "Failed to download updater program.")
-        return False
-    return True
-
-# Update the main program by running the updater script
-def update_main_program():
-    if not os.path.exists(UPDATER_PATH):
-        if not download_updater():
-            return
-    subprocess.Popen([sys.executable, UPDATER_PATH], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-# Check if there's a newer version of the EXE available on GitHub
+# Check for updates and download latest EXE from GitHub if available
 def check_for_update():
     latest_version, _ = fetch_latest_version()
     if latest_version != CURRENT_VERSION:
@@ -79,13 +58,13 @@ def download_latest_exe():
             exe_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'mainprogram.exe')
             with open(exe_path, 'wb') as f:
                 f.write(response.content)
-            return True  # Return success
-    return False  # Return failure if download fails
+            return True
+    return False
 
 # Open a selected program from the EXE folder instead of .pyw files
 def open_program(program_name):
-    exe_name = os.path.splitext(program_name)[0] + ".exe"  # Look for the EXE version
-    program_path = resource_path(os.path.join('subprograms', exe_name))  # Ensure EXE path
+    exe_name = os.path.splitext(program_name)[0] + ".exe"
+    program_path = resource_path(os.path.join('subprograms', exe_name))
     
     if os.path.exists(program_path):
         subprocess.Popen([program_path], shell=True)
@@ -99,7 +78,7 @@ def program_selection():
 
     # Set the window icon using the .png file
     icon_image = ImageTk.PhotoImage(file=ICON_PATH)
-    root.iconphoto(True, icon_image)  # This sets the PNG as the window icon
+    root.iconphoto(True, icon_image)
 
     # Group programs by their category prefix
     pump_programs = []
@@ -125,9 +104,10 @@ def program_selection():
 
     # Calculate necessary window size based on the number of programs
     max_rows = max(len(pump_programs), len(crind_programs), len(veeder_root_programs), len(passport_programs), 8)
-    window_height = 100 + (max_rows * 40)  # Dynamically set height based on number of rows
+    window_height = 100 + (max_rows * 40)
     window_width = 900
     root.geometry(f"{window_width}x{window_height}")
+    root.minsize(window_width, window_height)  # Set a minimum size for the window
 
     # Load and set background image
     background_image = Image.open(BACKGROUND_PATH)
@@ -149,7 +129,7 @@ def program_selection():
         ("Passport", passport_programs, 650)
     ]
 
-    # Place programs into their respective columns
+    # Place programs into their respective columns and make buttons resizable
     for column_name, column_programs, column_x in columns:
         column_label = tk.Label(root, text=column_name, bg=button_bg, fg=button_fg, font=button_font)
         column_label.place(x=column_x, y=20)
@@ -167,6 +147,10 @@ def program_selection():
         button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                         command=lambda name=program_name: open_program(name))
         button.place(x=50 + idx * 150, y=window_height - 60)
+
+    # Display version number in the bottom-right corner
+    version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
+    version_label.place(relx=1.0, rely=1.0, anchor='se', x=-10, y=-10)
 
     root.mainloop()
 

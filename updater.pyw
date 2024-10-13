@@ -1,125 +1,188 @@
 import os
-import requests
-import tkinter as tk
-from tkinter import Label, messagebox
-import time
-import psutil
 import sys
+import requests
 import ctypes
+import psutil
+import subprocess
+import tkinter as tk
+from tkinter import messagebox, ttk
 
-GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
+# GitHub API URL for fetching subprograms
+GITHUB_API_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
+
+# File paths
 MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
-PROGRAMS_PATH = r"C:\DevinsProgram\Programs"
-MAIN_PROGRAM_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "mainprogram.pyw")
-LOG_FILE_PATH = os.path.join(r"C:\DevinsProgram", "logs.txt")
+UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
+PROGRAMS_PATH = r"C:\DevinsProgram\Programs"  # Program folder path
+MAIN_PROGRAM_PATH = os.path.join(os.path.expanduser('~'), 'Desktop', 'mainprogram.pyw')
+UPDATER_PATH = r"C:\DevinsProgram\updater.pyw"  # Path to save updater in C:\DevinsProgram
 
+# Ensure the DevinsProgram directory exists
+if not os.path.exists(r"C:\DevinsProgram"):
+    os.makedirs(r"C:\DevinsProgram")
+
+# GUI setup
+root = tk.Tk()
+root.title("Updater")
+root.geometry("400x200")
+
+log_text = tk.Text(root, height=10, width=50)
+log_text.pack()
+
+progress = ttk.Progressbar(root, orient='horizontal', length=300, mode='determinate')
+progress.pack(pady=10)
 
 def log_message(message):
-    with open(LOG_FILE_PATH, 'a') as log_file:
-        log_file.write(f"{message}\n")
-    print(message)  # Print to console for easier debugging
+    log_text.insert(tk.END, message + "\n")
+    log_text.see(tk.END)
+    log_text.update_idletasks()  # Ensure the log updates immediately
 
-
-def close_programs():
-    # Close the main program and any subprograms
-    for process in psutil.process_iter(['pid', 'name', 'cmdline']):
-        try:
-            if process.info['name'] in ['python.exe', 'pythonw.exe']:
-                cmdline = process.info['cmdline']
-                if cmdline and any(part in cmdline for part in ["mainprogram.pyw", "Programs"]):
-                    log_message(f"Terminating process: {process.info['name']} with PID: {process.info['pid']}")
-                    process.terminate()
-                    process.wait()  # Wait for the process to terminate
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-
-
-def grant_admin_privileges():
+def is_admin():
+    """Check if the script is running with administrator privileges."""
     try:
-        is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
-    except AttributeError:
-        is_admin = False
-    if not is_admin:
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+def elevate_to_admin():
+    """Relaunch the script with administrator privileges."""
+    if not is_admin():
+        log_message("Relaunching as admin...")
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
         sys.exit()
 
+def kill_programs():
+    """Close any running Python programs named 'Devin's Program'."""
+    log_message("Checking for running instances of Devin's Program...")
+    found_program = False
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            # Log the process name and command line to inspect it
+            log_message(f"Checking process: {proc.info['name']} with command line: {proc.info['cmdline']}")
+            
+            # Match based on the script name 'mainprogram.pyw' or command line containing 'Devin\'s Program'
+            if proc.info['name'] == 'python.exe' and isinstance(proc.info['cmdline'], list):
+                if 'mainprogram.pyw' in proc.info['cmdline'] or 'Devin\'s Program' in ' '.join(proc.info['cmdline']):
+                    log_message(f"Terminating process: {proc.info['cmdline']}")
+                    proc.terminate()  # Graceful termination
+                    try:
+                        proc.wait(5)  # Wait for 5 seconds for the process to terminate
+                    except psutil.TimeoutExpired:
+                        log_message(f"Force killing process: {proc.info['cmdline']}")
+                        proc.kill()  # Force kill if terminate() didn't work
+                    log_message(f"Process terminated: {proc.info['cmdline']}")
+                    found_program = True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess) as e:
+            log_message(f"Error terminating process: {e}")
+    
+    if not found_program:
+        log_message("No running instances of Devin's Program found.")
 
-def update():
-    grant_admin_privileges()  # Ensure the script has admin privileges
-
-    root = tk.Tk()
-    root.title("Updater")
-    root.geometry("400x300")
-    label = Label(root, text="Starting update...")
-    label.pack(pady=20)
-    root.update()
-    log_message("Starting update...")
-
-    # Close running programs
-    label.config(text="Closing running programs...")
-    root.update()
-    log_message("Closing running programs...")
-    close_programs()
-    time.sleep(2)
-
-    # Update main program
-    label.config(text="Downloading main program...")
-    root.update()
-    log_message("Downloading main program...")
-    response = requests.get(MAIN_PROGRAM_URL)
+def download_file(url, dest_path):
+    """Download a file from a URL."""
+    log_message(f"Downloading {url}")
+    response = requests.get(url, stream=True)
     if response.status_code == 200:
-        content = response.content
-        with open(MAIN_PROGRAM_PATH, 'wb') as f:
-            f.write(content)
-        label.config(text="Main program updated.")
-        log_message("Main program updated.")
+        with open(dest_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        log_message(f"Downloaded {dest_path}")
     else:
-        label.config(text=f"Failed to download main program. Status code: {response.status_code}")
-        log_message(f"Failed to download main program. Status code: {response.status_code}")
-    root.update()
-    time.sleep(1)
+        log_message(f"Failed to download {url}, status code: {response.status_code}")
 
-    # Update subprograms
-    label.config(text="Downloading subprograms...")
-    root.update()
-    log_message("Downloading subprograms...")
-    response = requests.get(GITHUB_REPO_URL)
+def get_subprogram_files():
+    """Fetch the list of files in the GitHub subprograms folder."""
+    log_message("Fetching file list from GitHub...")
+    response = requests.get(GITHUB_API_URL)
     if response.status_code == 200:
         files = response.json()
-        log_message(f"Files fetched from GitHub: {files}")
-
-        # Clear the PROGRAMS_PATH directory
-        for filename in os.listdir(PROGRAMS_PATH):
-            file_path = os.path.join(PROGRAMS_PATH, filename)
-            os.remove(file_path)
-            log_message(f"Deleted: {file_path}")
-
-        # Download all subprograms again
-        for file in files:
-            if file['type'] == 'file':
-                download_url = file['download_url']
-                log_message(f"Downloading from URL: {download_url}")
-                response = requests.get(download_url)
-                if response.status_code == 200:
-                    content = response.content
-                    with open(os.path.join(PROGRAMS_PATH, file['name']), 'wb') as f:
-                        f.write(content)
-                    log_message(f"Downloaded: {file['name']}")
-                else:
-                    log_message(f"Failed to download {file['name']}, status code: {response.status_code}")
+        return [file['name'] for file in files if file['type'] == 'file']
     else:
-        log_message(f"Failed to fetch subprograms, status code: {response.status_code}")
+        log_message(f"Failed to fetch file list from GitHub, status code: {response.status_code}")
+        return []
 
-    time.sleep(1)
-    label.config(text="Subprograms updated.")
-    root.update()
-    log_message("Subprograms updated.")
+def delete_existing_files():
+    """Delete all existing files in C:\\DevinsProgram\\Programs and download new subprograms."""
+    log_message("Deleting existing files...")
+    if os.path.exists(PROGRAMS_PATH):
+        for file in os.listdir(PROGRAMS_PATH):
+            file_path = os.path.join(PROGRAMS_PATH, file)
+            try:
+                os.remove(file_path)
+                log_message(f"Deleted {file_path}")
+            except Exception as e:
+                log_message(f"Error deleting {file_path}: {e}")
 
-    label.config(text="Update complete. Please restart the main program.")
-    root.update()
-    log_message("Update complete. Please restart the main program.")
-    root.mainloop()
+def update_subprograms():
+    r"""Delete all files in C:\DevinsProgram\Programs and download new subprograms."""
+    delete_existing_files()
+    
+    subprogram_files = get_subprogram_files()
+    if not subprogram_files:
+        log_message("No files to download, aborting update.")
+        return
+    
+    log_message("Downloading new subprograms from GitHub...")
+    for idx, subprogram in enumerate(subprogram_files):
+        progress['value'] = (idx + 1) / len(subprogram_files) * 100
+        root.update_idletasks()
+        download_file(f"https://raw.githubusercontent.com/devinalonzo/myprogram/main/subprograms/{subprogram}", os.path.join(PROGRAMS_PATH, subprogram))
 
+    log_message("Subprograms updated successfully.")
 
-if __name__ == "__main__":
-    update()
+def update_main_program():
+    """Download and replace the main program."""
+    kill_programs()  # Ensure logging has started before attempting to terminate any processes
+    download_file(MAIN_PROGRAM_URL, MAIN_PROGRAM_PATH)
+
+def update_updater():
+    """Download and replace the updater."""
+    log_message("Updating the updater...")
+    download_file(UPDATER_URL, UPDATER_PATH)
+    log_message("Updater successfully updated.")
+
+def restart_main_program():
+    """Start the main program."""
+    subprocess.Popen(['python', MAIN_PROGRAM_PATH])
+
+def on_finish():
+    """Handler for finish button."""
+    restart_main_program()
+    root.quit()
+
+def run_update_process():
+    try:
+        log_message("Starting update process...")
+        update_main_program()
+        update_subprograms()
+        log_message("Main program and subprograms updated successfully.")
+        
+        # Confirmation dialog before proceeding with updater update
+        log_message("Update phase 1 complete. Waiting for confirmation to proceed with updater.")
+        messagebox.showinfo("Confirmation", "Main program and subprograms updated successfully. The updater will now update. Click OK to proceed.")
+        
+        # Update the updater
+        update_updater()
+        log_message("Updater update complete.")
+        
+        messagebox.showinfo("Updater", "The updater has been successfully updated.")
+        
+        root.quit()  # Close the current process
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
+
+finish_button = tk.Button(root, text="Finish", command=on_finish)
+finish_button.pack(pady=10)
+
+# Check and elevate to admin if necessary
+if not is_admin():
+    elevate_to_admin()
+
+# Ensure logging is started before doing anything else
+log_message("Updater started, logging initialized.")
+
+# Run update process
+run_update_process()
+
+root.mainloop()

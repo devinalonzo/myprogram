@@ -24,7 +24,7 @@ def resource_path(relative_path):
 # Set the correct paths for programs and resources
 PROGRAMS_PATH = resource_path('subprograms')
 BACKGROUND_PATH = resource_path('bkgd.png')
-ICON_PATH = resource_path('ico.ico')  # Correctly resolve the icon path
+ICON_PATH = resource_path('ico.png')  # Use the .png icon
 
 # Function to get the latest release version from GitHub
 def fetch_latest_version():
@@ -96,7 +96,10 @@ def open_program(program_name):
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
-    root.iconbitmap(ICON_PATH)  # Use the resolved icon path
+
+    # Set the window icon using the .png file
+    icon_image = ImageTk.PhotoImage(file=ICON_PATH)
+    root.iconphoto(True, icon_image)  # This sets the PNG as the window icon
 
     # Group programs by their category prefix
     pump_programs = []

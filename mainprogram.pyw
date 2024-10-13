@@ -6,9 +6,8 @@ import subprocess
 import sys
 from PIL import Image, ImageTk
 
-# Constants for GitHub URLs
-GITHUB_VERSION_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/version.txt"
-BACKGROUND_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/bkgd.png"
+# GitHub API URL for releases
+GITHUB_RELEASES_URL = "https://api.github.com/repos/devinalonzo/myprogram/releases/latest"
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
@@ -26,36 +25,21 @@ def resource_path(relative_path):
 PROGRAMS_PATH = resource_path('subprograms')
 BACKGROUND_PATH = resource_path('bkgd.png')
 
-# Function to get the version number from GitHub
-def fetch_version():
+# Function to get the latest release version from GitHub
+def fetch_latest_version():
     try:
-        response = requests.get(GITHUB_VERSION_URL)
+        response = requests.get(GITHUB_RELEASES_URL)
         if response.status_code == 200:
-            return response.text.strip()
+            latest_release = response.json()
+            return latest_release["tag_name"], latest_release["html_url"]  # Return version and release URL
         else:
-            return "1.0.0"  # Default version if there's an issue
+            return "BETA", None  # If no releases found, return BETA
     except Exception as e:
-        print(f"Error fetching version: {e}")
-        return "1.0.0"
+        print(f"Error fetching latest version: {e}")
+        return "BETA", None
 
-# Load the version dynamically during build
-CURRENT_VERSION = fetch_version()
-
-# Ensure directories exist
-def ensure_directories():
-    if not os.path.exists(PROGRAMS_PATH):
-        os.makedirs(PROGRAMS_PATH)
-
-# Download the background image from GitHub
-def download_background():
-    response = requests.get(BACKGROUND_URL)
-    if response.status_code == 200:
-        with open(BACKGROUND_PATH, 'wb') as f:
-            f.write(response.content)
-    else:
-        messagebox.showerror("Error", "Failed to download background image. Check your internet connection.")
-        return False
-    return True
+# Load the version dynamically during runtime
+CURRENT_VERSION, release_url = fetch_latest_version()
 
 # Download the updater script from GitHub
 def download_updater():
@@ -75,37 +59,30 @@ def update_main_program():
             return
     subprocess.Popen([sys.executable, UPDATER_PATH], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-# Check if there's a newer version of the EXE available
+# Check if there's a newer version of the EXE available on GitHub
 def check_for_update():
-    response = requests.get(GITHUB_VERSION_URL)
-    if response.status_code == 200:
-        latest_version = response.text.strip()
-        if latest_version != CURRENT_VERSION:
-            download_latest_exe()  # Implement this function to download EXE
-            messagebox.showinfo("Update Available", "New version downloaded. Please restart the program.")
+    latest_version, _ = fetch_latest_version()
+    if latest_version != CURRENT_VERSION:
+        if download_latest_exe():
+            messagebox.showinfo("Update Available", f"New version {latest_version} downloaded. Please restart the program.")
         else:
-            messagebox.showinfo("No Update", "You already have the latest version.")
+            messagebox.showerror("Update Failed", "Failed to download the latest EXE.")
     else:
-        messagebox.showerror("Error", "Could not check for updates.")
+        messagebox.showinfo("No Update", f"You are already using the latest version ({CURRENT_VERSION}).")
 
 # Download the latest EXE from GitHub and replace the current one
 def download_latest_exe():
-    url = "https://github.com/devinalonzo/myprogram/releases/latest/download/mainprogram.exe"
-    response = requests.get(url)
-    if response.status_code == 200:
-        exe_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'mainprogram.exe')
-        with open(exe_path, 'wb') as f:
-            f.write(response.content)
-        messagebox.showinfo("Success", "Updated to the latest version.")
-    else:
-        messagebox.showerror("Error", "Failed to download the latest EXE.")
+    if release_url:  # Use the release URL from the GitHub API
+        response = requests.get(f"{release_url}/download/mainprogram.exe")
+        if response.status_code == 200:
+            exe_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'mainprogram.exe')
+            with open(exe_path, 'wb') as f:
+                f.write(response.content)
+            return True  # Return success
+    return False  # Return failure if download fails
 
 # Program selection UI
 def program_selection():
-    ensure_directories()
-    if not os.path.exists(BACKGROUND_PATH):
-        download_background()
-
     root = tk.Tk()
     root.title("Devin's Program")
     root.geometry("800x600")
@@ -150,11 +127,13 @@ def program_selection():
 
     root.mainloop()
 
-# Open a selected program from the local folder or EXE-bundled folder
+# Open a selected program from the EXE folder instead of .pyw files
 def open_program(program_name):
-    program_path = os.path.join(PROGRAMS_PATH, program_name)
+    exe_name = os.path.splitext(program_name)[0] + ".exe"
+    program_path = resource_path(os.path.join('subprograms', exe_name))
+    
     if os.path.exists(program_path):
-        os.startfile(program_path)
+        subprocess.Popen([program_path], shell=True)
     else:
         messagebox.showinfo("Open Program", f"'{program_name}' not found. Please sync again.")
 

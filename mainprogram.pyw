@@ -7,14 +7,12 @@ import sys
 from PIL import Image, ImageTk
 
 # Constants for GitHub URLs
-GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
-ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
+GITHUB_VERSION_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/version.txt"
 BACKGROUND_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/bkgd.png"
+ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
 UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
-GITHUB_VERSION_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/version.txt"
-CURRENT_VERSION = "1.0.0"  # Update this version number when you build with new files
 
 # Helper function to resolve paths whether running from script or EXE
 def resource_path(relative_path):
@@ -26,6 +24,21 @@ def resource_path(relative_path):
 # Set the correct paths for programs and resources
 PROGRAMS_PATH = resource_path('subprograms')
 BACKGROUND_PATH = resource_path('bkgd.png')
+
+# Function to get the version number from GitHub
+def fetch_version():
+    try:
+        response = requests.get(GITHUB_VERSION_URL)
+        if response.status_code == 200:
+            return response.text.strip()
+        else:
+            return "1.0.0"  # Default version if there's an issue
+    except Exception as e:
+        print(f"Error fetching version: {e}")
+        return "1.0.0"
+
+# Load the version dynamically during build
+CURRENT_VERSION = fetch_version()
 
 # Ensure directories exist
 def ensure_directories():
@@ -110,11 +123,14 @@ def program_selection():
 
     # List programs from the local directory
     programs = os.listdir(PROGRAMS_PATH)
-    for idx, program_name in enumerate(programs):
-        program_display_name = os.path.splitext(program_name)[0]
-        button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
-                        command=lambda name=program_name: open_program(name))
-        button.place(x=350, y=150 + idx * 50)
+    if programs:
+        for idx, program_name in enumerate(programs):
+            program_display_name = os.path.splitext(program_name)[0]
+            button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
+                            command=lambda name=program_name: open_program(name))
+            button.place(x=350, y=150 + idx * 50)
+    else:
+        messagebox.showinfo("No Programs Found", "No subprograms are available in the subprograms folder.")
 
     # AnyDesk button
     anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font, command=open_anydesk)

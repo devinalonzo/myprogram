@@ -41,11 +41,12 @@ root.state('zoomed')
 # Load and display the background image
 background_image_path = resource_path("bkgd.png")
 bg_image = Image.open(background_image_path)
-bg_image = bg_image.resize((root.winfo_screenwidth(), root.winfo_screenheight()), Image.ANTIALIAS)
+bg_image = bg_image.resize((root.winfo_screenwidth(), root.winfo_screenheight()), Image.LANCZOS)  # Changed from Image.ANTIALIAS to Image.LANCZOS
 bg_image_tk = ImageTk.PhotoImage(bg_image)
 
 background_label = Label(root, image=bg_image_tk)
 background_label.place(relwidth=1, relheight=1)
+
 
 # Define columns and programs based on the naming convention
 columns = {

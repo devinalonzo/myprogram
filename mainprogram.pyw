@@ -17,13 +17,13 @@ UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 def resource_path(relative_path):
     """ Get the absolute path to the resource, works for PyInstaller bundled files """
     if hasattr(sys, '_MEIPASS'):
-        # This is the location where PyInstaller unpacks the resources in an EXE
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
 # Set the correct paths for programs and resources
 PROGRAMS_PATH = resource_path('subprograms')
 BACKGROUND_PATH = resource_path('bkgd.png')
+ICON_PATH = resource_path('ico.ico')
 
 # Function to get the latest release version from GitHub
 def fetch_latest_version():
@@ -72,7 +72,7 @@ def check_for_update():
 
 # Download the latest EXE from GitHub and replace the current one
 def download_latest_exe():
-    if release_url:  # Use the release URL from the GitHub API
+    if release_url:
         response = requests.get(f"{release_url}/download/mainprogram.exe")
         if response.status_code == 200:
             exe_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'mainprogram.exe')
@@ -84,23 +84,50 @@ def download_latest_exe():
 # Open a selected program from the EXE folder instead of .pyw files
 def open_program(program_name):
     exe_name = os.path.splitext(program_name)[0] + ".exe"  # Look for the EXE version
-    program_path = resource_path(os.path.join('subprograms', exe_name))  # Ensure EXE path
+    program_path = resource_path(os.path.join('subprograms', exe_name))
     
     if os.path.exists(program_path):
         subprocess.Popen([program_path], shell=True)
     else:
-        # Show the path in a popup if the EXE is not found
         messagebox.showinfo("Error", f"EXE not found:\n{program_path}")
 
 # Program selection UI
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
-    root.geometry("800x600")
+    root.iconbitmap(ICON_PATH)
+
+    # Group programs by their category prefix
+    pump_programs = []
+    crind_programs = []
+    veeder_root_programs = []
+    passport_programs = []
+    help_resources = []
+
+    # List programs from the local directory or EXE-bundled folder
+    if os.path.exists(PROGRAMS_PATH):
+        programs = os.listdir(PROGRAMS_PATH)
+        for program_name in programs:
+            if program_name.startswith('pu-'):
+                pump_programs.append(program_name)
+            elif program_name.startswith('c-'):
+                crind_programs.append(program_name)
+            elif program_name.startswith('v-'):
+                veeder_root_programs.append(program_name)
+            elif program_name.startswith('pa-'):
+                passport_programs.append(program_name)
+            elif program_name.startswith('h-'):
+                help_resources.append(program_name)
+
+    # Calculate necessary window size based on the number of programs
+    max_rows = max(len(pump_programs), len(crind_programs), len(veeder_root_programs), len(passport_programs), 8)
+    window_height = 100 + (max_rows * 40)  # Dynamically set height based on number of rows
+    window_width = 900
+    root.geometry(f"{window_width}x{window_height}")
 
     # Load and set background image
     background_image = Image.open(BACKGROUND_PATH)
-    background_image = background_image.resize((800, 600), Image.LANCZOS)
+    background_image = background_image.resize((window_width, window_height), Image.LANCZOS)
     background_photo = ImageTk.PhotoImage(background_image)
     background_label = tk.Label(root, image=background_photo)
     background_label.place(relwidth=1, relheight=1)
@@ -110,41 +137,34 @@ def program_selection():
     button_fg = "#ffffff"
     button_font = ("Helvetica", 12, "bold")
 
-    # List programs from the local directory or EXE-bundled folder
-    if os.path.exists(PROGRAMS_PATH):
-        programs = os.listdir(PROGRAMS_PATH)
-        if programs:
-            for idx, program_name in enumerate(programs):
-                program_display_name = os.path.splitext(program_name)[0]
-                button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
-                                command=lambda name=program_name: open_program(name))
-                button.place(x=350, y=150 + idx * 50)
-        else:
-            messagebox.showinfo("No Programs Found", "No subprograms are available in the subprograms folder.")
-    else:
-        messagebox.showinfo("No Programs Found", "Subprograms folder not found!")
+    # Create labels for the columns
+    columns = [
+        ("Pump", pump_programs, 50),
+        ("CRIND", crind_programs, 250),
+        ("Veeder-Root", veeder_root_programs, 450),
+        ("Passport", passport_programs, 650)
+    ]
 
-    # AnyDesk button
-    anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font, command=open_anydesk)
-    anydesk_button.place(x=650, y=20)
+    # Place programs into their respective columns
+    for column_name, column_programs, column_x in columns:
+        column_label = tk.Label(root, text=column_name, bg=button_bg, fg=button_fg, font=button_font)
+        column_label.place(x=column_x, y=20)
+        for idx, program_name in enumerate(column_programs[:8]):  # Limit each column to 8 programs
+            program_display_name = os.path.splitext(program_name)[0][3:]  # Remove prefix
+            button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
+                            command=lambda name=program_name: open_program(name))
+            button.place(x=column_x, y=60 + idx * 40)
 
-    # Update button
-    update_button = Button(root, text="Update", bg=button_bg, fg=button_fg, font=button_font, command=check_for_update)
-    update_button.place(x=550, y=20)
-
-    # Version Label at bottom right
-    version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
-    version_label.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)  # Positioned bottom-right with padding
+    # Add Help/Resources section at the bottom
+    help_label = tk.Label(root, text="Help/Resources", bg=button_bg, fg=button_fg, font=button_font)
+    help_label.place(x=50, y=window_height - 100)
+    for idx, program_name in enumerate(help_resources):
+        program_display_name = os.path.splitext(program_name)[0][2:]  # Remove 'h-' prefix
+        button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
+                        command=lambda name=program_name: open_program(name))
+        button.place(x=50 + idx * 150, y=window_height - 60)
 
     root.mainloop()
-
-# Open AnyDesk if installed, otherwise download it
-def open_anydesk():
-    if not os.path.exists(ANYDESK_PATH):
-        response = requests.get(ANYDESK_DOWNLOAD_URL)
-        with open(ANYDESK_PATH, 'wb') as f:
-            f.write(response.content)
-    os.startfile(ANYDESK_PATH)
 
 # Run the program selection UI
 if __name__ == "__main__":

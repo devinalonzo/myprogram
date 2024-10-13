@@ -34,7 +34,7 @@ if hasattr(sys, '_MEIPASS'):
 else:
     CURRENT_VERSION = "BETA"
 
-# Check for updates and avoid downloading older releases
+# Check for updates and compare the version from GitHub repo with current version
 def check_for_update():
     try:
         response = requests.get(GITHUB_RELEASES_URL)
@@ -42,8 +42,10 @@ def check_for_update():
             latest_release = response.json()
             latest_version = latest_release["tag_name"]
             if latest_version > CURRENT_VERSION:  # Only update if the latest version is newer
-                if download_latest_exe(latest_release["assets"][0]["browser_download_url"]):
-                    messagebox.showinfo("Update Available", f"New version {latest_version} downloaded. Please restart the program.")
+                download_url = latest_release["assets"][0]["browser_download_url"]
+                file_name = latest_release["assets"][0]["name"]
+                if download_latest_exe(download_url, file_name):
+                    messagebox.showinfo("Update Available", f"New version {latest_version} downloaded. Saved on your Desktop as {file_name}. Please restart the program.")
                 else:
                     messagebox.showerror("Update Failed", "Failed to download the latest EXE.")
             else:
@@ -53,12 +55,12 @@ def check_for_update():
     except Exception as e:
         messagebox.showerror("Error", f"Failed to check for updates: {e}")
 
-# Download the latest EXE from GitHub
-def download_latest_exe(download_url):
+# Download the latest EXE from GitHub and save it to the desktop
+def download_latest_exe(download_url, file_name):
     try:
         response = requests.get(download_url)
         if response.status_code == 200:
-            exe_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'mainprogram.exe')
+            exe_path = os.path.join(os.path.expanduser('~'), 'Desktop', file_name)
             with open(exe_path, 'wb') as f:
                 f.write(response.content)
             return True
@@ -92,8 +94,8 @@ def open_program(program_name):
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
-    root.geometry("1200x700")  # Fixed window size
-    root.resizable(False, False)  # Prevent window resizing
+    root.state('zoomed')  # Open maximized, but not full-screen
+    root.resizable(False, False)  # Lock the window size
 
     # Set the window icon using the .png file
     icon_image = ImageTk.PhotoImage(file=ICON_PATH)
@@ -122,8 +124,8 @@ def program_selection():
                 help_resources.append(program_name)
 
     # Set the screen size
-    screen_width = 1200
-    screen_height = 700
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
 
     # Load and set background image (more efficient)
     background_image = Image.open(BACKGROUND_PATH).resize((screen_width, screen_height), Image.LANCZOS)

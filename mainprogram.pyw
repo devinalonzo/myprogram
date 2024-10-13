@@ -14,9 +14,9 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # Function to open a subprogram (EXE file)
-def open_subprogram(prog_name):
+def open_subprogram(full_filename):
     subprograms_dir = resource_path("subprograms")
-    full_prog_path = os.path.join(subprograms_dir, prog_name + ".exe")
+    full_prog_path = os.path.join(subprograms_dir, full_filename)
     
     if os.path.exists(full_prog_path):
         subprocess.Popen([full_prog_path], shell=True)
@@ -47,25 +47,25 @@ def create_gui():
     subprograms_dir = resource_path("subprograms")
     for filename in os.listdir(subprograms_dir):
         if filename.endswith(".exe"):
-            display_name = filename[2:-4]  # Strip first 2 chars and the '.exe' extension
+            display_name = filename[2:-4]  # Strip first 2 chars and the '.exe' extension for the button label
             if filename.startswith("1-"):
-                column_data["Pump"].append(display_name)
+                column_data["Pump"].append((display_name, filename))  # Add both display name and full filename
             elif filename.startswith("2-"):
-                column_data["CRIND"].append(display_name)
+                column_data["CRIND"].append((display_name, filename))
             elif filename.startswith("3-"):
-                column_data["Veeder-Root"].append(display_name)
+                column_data["Veeder-Root"].append((display_name, filename))
             elif filename.startswith("4-"):
-                column_data["Passport"].append(display_name)
+                column_data["Passport"].append((display_name, filename))
             elif filename.startswith("5-"):
-                column_data["Help/Resources"].append(display_name)
+                column_data["Help/Resources"].append((display_name, filename))
 
     # Create buttons for each column
     for i, (col_title, programs) in enumerate(column_data.items()):
         col_label = Label(root, text=col_title, font=("Arial", 16, "bold"), bg="black", fg="red", padx=10, pady=5)
         col_label.grid(row=0, column=i, sticky="n")
 
-        for j, program in enumerate(programs):
-            btn = Button(root, text=program, font=("Arial", 12), command=lambda p=program: open_subprogram(p))
+        for j, (display_name, full_filename) in enumerate(programs):
+            btn = Button(root, text=display_name, font=("Arial", 12), command=lambda p=full_filename: open_subprogram(p))
             btn.grid(row=j+1, column=i, padx=10, pady=5, sticky="ew")
 
     # Help/Resources section positioning

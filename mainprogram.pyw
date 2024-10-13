@@ -90,16 +90,38 @@ def open_program(program_name):
     else:
         messagebox.showinfo("Error", f"EXE not found:\n{program_path}")
 
+# Dynamically resize the layout based on window size
+def on_resize(event):
+    new_width = event.width
+    new_height = event.height
+    scale_factor_x = new_width / 1200
+    scale_factor_y = new_height / 700
+
+    # Scale buttons and headers based on window size (keeping reasonable size)
+    new_button_font_size = max(10, int(12 * scale_factor_y))
+    new_header_font_size = max(14, int(16 * scale_factor_y))
+
+    # Update the button and header sizes
+    button_font.config(size=new_button_font_size)
+    header_font.config(size=new_header_font_size)
+
 # Program selection UI
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
-    root.state('zoomed')  # Open maximized, but not full-screen
-    root.resizable(False, False)  # Lock the window size
+    root.state('zoomed')  # Open maximized, but not in full-screen mode
+    root.resizable(True, True)  # Allow resizing to simulate full-screen but without true full-screen mode
 
     # Set the window icon using the .png file
     icon_image = ImageTk.PhotoImage(file=ICON_PATH)
     root.iconphoto(True, icon_image)
+
+    # Set up fonts and scaling
+    global button_font, header_font
+    button_font = ("Helvetica", 12, "bold")
+    header_font = ("Helvetica", 16, "bold")
+
+    root.bind("<Configure>", on_resize)  # Adjust layout on window resize
 
     # Group programs by their category prefix
     pump_programs = []
@@ -136,10 +158,9 @@ def program_selection():
     # Button styling
     button_bg = "#4e5d6c"
     button_fg = "#ffffff"
-    button_font = ("Helvetica", 12, "bold")
 
     # Header styling with red neon glow effect
-    header_style = {"bg": "#2c3e50", "fg": "#ff3b3b", "font": ("Helvetica", 16, "bold")}
+    header_style = {"bg": "#2c3e50", "fg": "#ff3b3b", "font": header_font}
 
     # Create labels for the columns with header glow effect
     columns = [

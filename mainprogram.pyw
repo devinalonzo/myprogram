@@ -1,120 +1,140 @@
 import os
-import sys
-import requests
 import tkinter as tk
-from tkinter import messagebox
-from tkinter import ttk
+from tkinter import messagebox, Button, Label
 from PIL import Image, ImageTk
+import subprocess
 
-# Constants for GitHub release comparison
-GITHUB_RELEASES_URL = "https://api.github.com/repos/devinalonzo/myprogram/releases/latest"
-TEMP_DIR = getattr(sys, '_MEIPASS', os.path.abspath("."))
+# Define paths
+ICON_PATH = "ico.png"  # Replace with correct icon path
+BACKGROUND_PATH = "bkgd.png"
+PROGRAMS_PATH = "subprograms"
+CURRENT_VERSION = "1.0.0"  # This should be dynamically set during the build process
 
-class DevinsProgram:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Devins Program")
-        self.root.state('zoomed')  # Maximized window but not full-screen
+# Helper function to resolve file paths when bundled with PyInstaller
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
-        # Load background image
-        self.background_image_path = os.path.join(TEMP_DIR, 'bkgd.png')
-        self.set_background()
+# Function to open a subprogram (EXE file)
+def open_program(full_filename):
+    subprograms_dir = resource_path(PROGRAMS_PATH)
+    full_prog_path = os.path.join(subprograms_dir, full_filename)
+    
+    if os.path.exists(full_prog_path):
+        subprocess.Popen([full_prog_path], shell=True)
+    else:
+        messagebox.showerror("EXE not found", f"{full_prog_path} not found.")
 
-        # Set up columns and buttons
-        self.setup_columns()
+# Function to open AnyDesk
+def open_anydesk():
+    anydesk_path = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
+    if os.path.exists(anydesk_path):
+        subprocess.Popen([anydesk_path], shell=True)
+    else:
+        # Download and save it to the desktop if not found
+        anydesk_url = "https://download.anydesk.com/AnyDesk.exe"
+        subprocess.run(["powershell", "-command", f"Invoke-WebRequest -Uri {anydesk_url} -OutFile {anydesk_path}"])
+        subprocess.Popen([anydesk_path], shell=True)
 
-        # Version and action buttons (bottom right)
-        self.version = "1.0.0"  # Example version, this should be set dynamically during build
-        self.setup_version_and_action_buttons()
+# Function to check for updates
+def check_for_update():
+    # Placeholder: Logic to compare the current version with the latest on GitHub
+    pass
 
-    def set_background(self):
-        try:
-            image = Image.open(self.background_image_path)
-            background_image = ImageTk.PhotoImage(image.resize((self.root.winfo_screenwidth(), self.root.winfo_screenheight()), Image.ANTIALIAS))
-            background_label = tk.Label(self.root, image=background_image)
-            background_label.image = background_image
-            background_label.place(relwidth=1, relheight=1)
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load background: {e}")
+# Main program selection UI
+def program_selection():
+    root = tk.Tk()
+    root.title("Devin's Program")
 
-    def setup_columns(self):
-        columns_frame = tk.Frame(self.root, bg='white')
-        columns_frame.place(relx=0, rely=0, relwidth=1, relheight=0.5)
+    # Set the window icon using the .png file
+    icon_image = ImageTk.PhotoImage(file=ICON_PATH)
+    root.iconphoto(True, icon_image)
 
-        column_titles = ["Pump", "CRIND", "Veeder-Root", "Passport"]
-        for idx, title in enumerate(column_titles):
-            column_frame = tk.Frame(columns_frame, bd=2, relief="groove")
-            column_frame.place(relx=idx * 0.25, rely=0, relwidth=0.25, relheight=1)
-            label = tk.Label(column_frame, text=title, font=("Helvetica", 18, "bold"))
-            label.pack(pady=10)
-            self.add_buttons_to_column(column_frame, idx + 1)
+    # Group programs by their category prefix
+    pump_programs = []
+    crind_programs = []
+    veeder_root_programs = []
+    passport_programs = []
+    help_resources = []
 
-    def add_buttons_to_column(self, column_frame, column_id):
-        subprograms_dir = os.path.join(TEMP_DIR, "subprograms")
-        if os.path.exists(subprograms_dir):
-            for file in os.listdir(subprograms_dir):
-                if file.startswith(f"{column_id}-") and file.endswith(".exe"):
-                    button_label = file[2:].replace(".exe", "")
-                    button = tk.Button(column_frame, text=button_label, command=lambda f=file: self.open_subprogram(f))
-                    button.pack(pady=5, fill='x')
+    # List programs from the local directory or EXE-bundled folder
+    if os.path.exists(PROGRAMS_PATH):
+        programs = os.listdir(PROGRAMS_PATH)
+        for program_name in programs:
+            if program_name.startswith('1-'):
+                pump_programs.append(program_name)
+            elif program_name.startswith('2-'):
+                crind_programs.append(program_name)
+            elif program_name.startswith('3-'):
+                veeder_root_programs.append(program_name)
+            elif program_name.startswith('4-'):
+                passport_programs.append(program_name)
+            elif program_name.startswith('5-'):
+                help_resources.append(program_name)
 
-    def open_subprogram(self, filename):
-        subprogram_path = os.path.join(TEMP_DIR, "subprograms", filename)
-        os.system(f'"{subprogram_path}"')
+    # Calculate necessary window size based on the number of programs
+    max_rows = max(len(pump_programs), len(crind_programs), len(veeder_root_programs), len(passport_programs), 8)
+    window_height = 100 + (max_rows * 40)
+    window_width = 900
+    root.geometry(f"{window_width}x{window_height}")
+    root.minsize(window_width, window_height)  # Set a minimum size for the window
 
-    def setup_version_and_action_buttons(self):
-        actions_frame = tk.Frame(self.root, bg='white')
-        actions_frame.place(relx=0.75, rely=0.9, relwidth=0.25, relheight=0.1)
+    # Load and set background image
+    background_image = Image.open(BACKGROUND_PATH)
+    background_image = background_image.resize((window_width, window_height), Image.LANCZOS)
+    background_photo = ImageTk.PhotoImage(background_image)
+    background_label = tk.Label(root, image=background_photo)
+    background_label.place(relwidth=1, relheight=1)
 
-        version_label = tk.Label(actions_frame, text=f"Version: {self.version}", font=("Helvetica", 12))
-        version_label.grid(row=0, column=0, padx=10, pady=5)
+    # Button styling
+    button_bg = "#4e5d6c"
+    button_fg = "#ffffff"
+    button_font = ("Helvetica", 12, "bold")
 
-        update_button = tk.Button(actions_frame, text="Update", command=self.check_for_updates)
-        update_button.grid(row=0, column=1, padx=10, pady=5)
+    # Create labels for the columns
+    columns = [
+        ("Pump", pump_programs, 50),
+        ("CRIND", crind_programs, 250),
+        ("Veeder-Root", veeder_root_programs, 450),
+        ("Passport", passport_programs, 650)
+    ]
 
-        anydesk_button = tk.Button(actions_frame, text="Anydesk", command=self.open_or_download_anydesk)
-        anydesk_button.grid(row=0, column=2, padx=10, pady=5)
+    # Place programs into their respective columns and make buttons resizable
+    for column_name, column_programs, column_x in columns:
+        column_label = tk.Label(root, text=column_name, bg=button_bg, fg=button_fg, font=button_font)
+        column_label.place(x=column_x, y=20)
+        for idx, program_name in enumerate(column_programs[:8]):  # Limit each column to 8 programs
+            program_display_name = os.path.splitext(program_name)[0][2:]  # Remove number prefix for display
+            button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
+                            command=lambda name=program_name: open_program(name))
+            button.place(x=column_x, y=60 + idx * 40)
 
-    def check_for_updates(self):
-        try:
-            response = requests.get(GITHUB_RELEASES_URL)
-            if response.status_code == 200:
-                latest_version = response.json()["tag_name"].strip("v")
-                if self.version < latest_version:
-                    # Download latest release
-                    release_asset_url = response.json()["assets"][0]["browser_download_url"]
-                    desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-                    release_filename = release_asset_url.split("/")[-1]
-                    save_path = os.path.join(desktop_path, release_filename)
-                    with requests.get(release_asset_url, stream=True) as r:
-                        with open(save_path, 'wb') as f:
-                            for chunk in r.iter_content(chunk_size=8192):
-                                f.write(chunk)
-                    messagebox.showinfo("Update", f"Downloaded latest version to: {save_path}")
-                else:
-                    messagebox.showinfo("Update", "No update needed, you are on the current version.")
-            else:
-                messagebox.showerror("Error", "Failed to check for updates.")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error checking for updates: {e}")
+    # Add Help/Resources section at the bottom
+    help_label = tk.Label(root, text="Help/Resources", bg=button_bg, fg=button_fg, font=button_font)
+    help_label.place(x=50, y=window_height - 100)
+    for idx, program_name in enumerate(help_resources):
+        program_display_name = os.path.splitext(program_name)[0][2:]  # Remove 'h-' prefix
+        button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
+                        command=lambda name=program_name: open_program(name))
+        button.place(x=50 + idx * 150, y=window_height - 60)
 
-    def open_or_download_anydesk(self):
-        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-        anydesk_path = os.path.join(desktop_path, "AnyDesk.exe")
-        if os.path.exists(anydesk_path):
-            os.system(f'"{anydesk_path}"')
-        else:
-            try:
-                anydesk_download_url = "https://download.anydesk.com/AnyDesk.exe"
-                with requests.get(anydesk_download_url, stream=True) as r:
-                    with open(anydesk_path, 'wb') as f:
-                        for chunk in r.iter_content(chunk_size=8192):
-                            f.write(chunk)
-                os.system(f'"{anydesk_path}"')
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to download AnyDesk: {e}")
+    # Add AnyDesk and Update buttons
+    anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
+                            command=open_anydesk)
+    anydesk_button.place(x=650, y=window_height - 100)
+
+    update_button = Button(root, text="Check for Update", bg=button_bg, fg=button_fg, font=button_font,
+                           command=check_for_update)
+    update_button.place(x=650, y=window_height - 60)
+
+    # Display version number in the bottom-right corner
+    version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
+    version_label.place(relx=1.0, rely=1.0, anchor='se', x=-10, y=-10)
+
+    root.mainloop()
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = DevinsProgram(root)
-    root.mainloop()
+    program_selection()

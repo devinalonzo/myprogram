@@ -36,20 +36,15 @@ def fetch_latest_version():
         print(f"Error fetching latest version: {e}")
         return "BETA", None
 
-# Load the version dynamically during runtime
-CURRENT_VERSION, release_url = fetch_latest_version()
+# Function to ask for version number during EXE build process
+def get_build_version():
+    version = input("Enter version for this build: ")
+    return version if version else "BETA"
 
-# Download the AnyDesk program
-def download_anydesk():
-    response = requests.get(ANYDESK_DOWNLOAD_URL)
-    if response.status_code == 200:
-        with open(ANYDESK_PATH, 'wb') as f:
-            f.write(response.content)
-        messagebox.showinfo("AnyDesk", "AnyDesk downloaded to Desktop.")
-    else:
-        messagebox.showerror("Error", "Failed to download AnyDesk.")
+# Set the current version dynamically during runtime
+CURRENT_VERSION = get_build_version()
 
-# Check for updates and download latest EXE from GitHub if available
+# Check for updates and download the latest EXE from GitHub if available
 def check_for_update():
     latest_version, _ = fetch_latest_version()
     if latest_version != CURRENT_VERSION:
@@ -70,6 +65,18 @@ def download_latest_exe():
                 f.write(response.content)
             return True
     return False
+
+# AnyDesk button behavior: Download if not found, otherwise open
+def open_anydesk():
+    if not os.path.exists(ANYDESK_PATH):
+        response = requests.get(ANYDESK_DOWNLOAD_URL)
+        if response.status_code == 200:
+            with open(ANYDESK_PATH, 'wb') as f:
+                f.write(response.content)
+            messagebox.showinfo("AnyDesk", "AnyDesk downloaded and opened.")
+        else:
+            messagebox.showerror("Error", "Failed to download AnyDesk.")
+    subprocess.Popen(ANYDESK_PATH, shell=True)
 
 # Open a selected program from the EXE folder instead of .pyw files
 def open_program(program_name):
@@ -159,8 +166,8 @@ def program_selection():
         button.place(x=50 + idx * 150, y=window_height - 60)
 
     # Add AnyDesk and Update buttons
-    anydesk_button = Button(root, text="Download AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
-                            command=download_anydesk)
+    anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
+                            command=open_anydesk)
     anydesk_button.place(x=650, y=window_height - 100)
 
     update_button = Button(root, text="Check for Update", bg=button_bg, fg=button_fg, font=button_font,

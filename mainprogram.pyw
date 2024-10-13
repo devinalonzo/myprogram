@@ -14,7 +14,7 @@ ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
 UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 GITHUB_VERSION_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/version.txt"
-CURRENT_VERSION = "1.0.0"
+CURRENT_VERSION = "1.0.0"  # Update this version number when you build with new files
 
 # Helper function to resolve paths whether running from script or EXE
 def resource_path(relative_path):
@@ -123,6 +123,10 @@ def program_selection():
     # Update button
     update_button = Button(root, text="Update", bg=button_bg, fg=button_fg, font=button_font, command=check_for_update)
     update_button.place(x=550, y=20)
+
+    # Version Label at bottom right
+    version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
+    version_label.place(relx=1.0, rely=1.0, anchor="se", x=-10, y=-10)  # Positioned bottom-right with padding
 
     root.mainloop()
 

@@ -92,7 +92,7 @@ def open_program(program_name):
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
-    root.attributes("-fullscreen", True)  # Fullscreen mode
+    root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")  # Fill the screen but not in full-screen mode
 
     # Set the window icon using the .png file
     icon_image = ImageTk.PhotoImage(file=ICON_PATH)
@@ -152,7 +152,7 @@ def program_selection():
         column_label = tk.Label(root, text=column_name, **header_style)
         column_label.place(x=column_x + 50, y=30)
         for idx, program_name in enumerate(column_programs[:8]):  # Limit each column to 8 programs
-            program_display_name = os.path.splitext(program_name)[0][3:]  # Remove prefix
+            program_display_name = os.path.splitext(program_name)[0]  # No need to remove prefix for display
             button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                             command=lambda name=program_name: open_program(name))
             button.place(x=column_x + 50, y=80 + idx * 40, width=screen_width // 5 - 100)  # Adjust button width
@@ -161,7 +161,7 @@ def program_selection():
     help_label = tk.Label(root, text="Help/Resources", **header_style)
     help_label.place(x=50, y=screen_height - 150)
     for idx, program_name in enumerate(help_resources):
-        program_display_name = os.path.splitext(program_name)[0][2:]  # Remove 'h-' prefix
+        program_display_name = os.path.splitext(program_name)[0]  # No need to remove 'h-' prefix
         button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                         command=lambda name=program_name: open_program(name))
         button.place(x=50 + idx * 250, y=screen_height - 100, width=200)  # Adjust button width

@@ -11,12 +11,13 @@ GITHUB_RELEASES_URL = "https://api.github.com/repos/devinalonzo/myprogram/releas
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
-UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")  # Corrected missing parenthesis
+UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 
 # Helper function to resolve paths whether running from script or EXE
 def resource_path(relative_path):
     """ Get the absolute path to the resource, works for PyInstaller bundled files """
     if hasattr(sys, '_MEIPASS'):
+        # This is the location where PyInstaller unpacks the resources in an EXE
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
@@ -88,7 +89,8 @@ def open_program(program_name):
     if os.path.exists(program_path):
         subprocess.Popen([program_path], shell=True)
     else:
-        messagebox.showinfo("Open Program", f"'{exe_name}' not found.")
+        # Show the path in a popup if the EXE is not found
+        messagebox.showinfo("Error", f"EXE not found:\n{program_path}")
 
 # Program selection UI
 def program_selection():

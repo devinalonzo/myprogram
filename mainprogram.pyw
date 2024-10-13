@@ -39,6 +39,16 @@ def fetch_latest_version():
 # Load the version dynamically during runtime
 CURRENT_VERSION, release_url = fetch_latest_version()
 
+# Download the AnyDesk program
+def download_anydesk():
+    response = requests.get(ANYDESK_DOWNLOAD_URL)
+    if response.status_code == 200:
+        with open(ANYDESK_PATH, 'wb') as f:
+            f.write(response.content)
+        messagebox.showinfo("AnyDesk", "AnyDesk downloaded to Desktop.")
+    else:
+        messagebox.showerror("Error", "Failed to download AnyDesk.")
+
 # Check for updates and download latest EXE from GitHub if available
 def check_for_update():
     latest_version, _ = fetch_latest_version()
@@ -147,6 +157,15 @@ def program_selection():
         button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                         command=lambda name=program_name: open_program(name))
         button.place(x=50 + idx * 150, y=window_height - 60)
+
+    # Add AnyDesk and Update buttons
+    anydesk_button = Button(root, text="Download AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
+                            command=download_anydesk)
+    anydesk_button.place(x=650, y=window_height - 100)
+
+    update_button = Button(root, text="Check for Update", bg=button_bg, fg=button_fg, font=button_font,
+                           command=check_for_update)
+    update_button.place(x=650, y=window_height - 60)
 
     # Display version number in the bottom-right corner
     version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))

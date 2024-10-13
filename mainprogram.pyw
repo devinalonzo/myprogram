@@ -88,24 +88,12 @@ def open_program(program_name):
     else:
         messagebox.showinfo("Error", f"EXE not found:\n{program_path}")
 
-# Adaptive layout update
-def on_resize(event):
-    # Adjust the background image and widget sizes on window resize
-    screen_width = event.width
-    screen_height = event.height
-    background_image = Image.open(BACKGROUND_PATH)
-    background_image = background_image.resize((screen_width, screen_height), Image.LANCZOS)
-    background_photo = ImageTk.PhotoImage(background_image)
-    background_label.config(image=background_photo)
-    background_label.image = background_photo  # Keep reference to avoid garbage collection
-
 # Program selection UI
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
-    root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")  # Fill the screen but not in full-screen mode
-    root.resizable(True, True)  # Allow the window to be resized
-    root.bind('<Configure>', on_resize)
+    root.geometry("1200x700")  # Fixed window size
+    root.resizable(False, False)  # Prevent window resizing
 
     # Set the window icon using the .png file
     icon_image = ImageTk.PhotoImage(file=ICON_PATH)
@@ -134,13 +122,11 @@ def program_selection():
                 help_resources.append(program_name)
 
     # Set the screen size
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
+    screen_width = 1200
+    screen_height = 700
 
-    # Load and set background image
-    background_image = Image.open(BACKGROUND_PATH)
-    background_image = background_image.resize((screen_width, screen_height), Image.LANCZOS)
-    global background_label
+    # Load and set background image (more efficient)
+    background_image = Image.open(BACKGROUND_PATH).resize((screen_width, screen_height), Image.LANCZOS)
     background_photo = ImageTk.PhotoImage(background_image)
     background_label = tk.Label(root, image=background_photo)
     background_label.place(relwidth=1, relheight=1)
@@ -180,9 +166,9 @@ def program_selection():
                         command=lambda name=program_name: open_program(name))
         button.place(x=50 + idx * 250, y=screen_height // 2 + 50, width=200)  # Adjust button width
 
-    # Frame for AnyDesk and Update buttons side-by-side
+    # Frame for AnyDesk and Update buttons side-by-side, moved higher
     button_frame = Frame(root, bg="#2c3e50")
-    button_frame.place(x=screen_width - 500, y=screen_height - 100)
+    button_frame.place(x=screen_width - 500, y=screen_height - 200)  # Moved higher up
 
     # Add AnyDesk and Update buttons with extra padding
     anydesk_button = Button(button_frame, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,

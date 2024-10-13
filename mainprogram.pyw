@@ -1,5 +1,5 @@
 import os
-import sys  # <-- Add this import to handle checking for PyInstaller bundled environment
+import sys
 import requests
 import subprocess
 import tkinter as tk
@@ -11,7 +11,7 @@ GITHUB_RELEASES_URL = "https://api.github.com/repos/devinalonzo/myprogram/releas
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
 UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
-UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw"
+UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")  # Corrected missing parenthesis
 
 # Helper function to resolve paths whether running from script or EXE
 def resource_path(relative_path):

@@ -93,6 +93,7 @@ def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
     root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")  # Fill the screen but not in full-screen mode
+    root.resizable(True, True)  # Allow the window to be resized
 
     # Set the window icon using the .png file
     icon_image = ImageTk.PhotoImage(file=ICON_PATH)
@@ -109,15 +110,15 @@ def program_selection():
     if os.path.exists(PROGRAMS_PATH):
         programs = os.listdir(PROGRAMS_PATH)
         for program_name in programs:
-            if program_name.startswith('pu-'):
+            if program_name.startswith('1-'):
                 pump_programs.append(program_name)
-            elif program_name.startswith('c-'):
+            elif program_name.startswith('2-'):
                 crind_programs.append(program_name)
-            elif program_name.startswith('v-'):
+            elif program_name.startswith('3-'):
                 veeder_root_programs.append(program_name)
-            elif program_name.startswith('pa-'):
+            elif program_name.startswith('4-'):
                 passport_programs.append(program_name)
-            elif program_name.startswith('h-'):
+            elif program_name.startswith('5-'):
                 help_resources.append(program_name)
 
     # Set the screen size
@@ -152,19 +153,19 @@ def program_selection():
         column_label = tk.Label(root, text=column_name, **header_style)
         column_label.place(x=column_x + 50, y=30)
         for idx, program_name in enumerate(column_programs[:8]):  # Limit each column to 8 programs
-            program_display_name = os.path.splitext(program_name)[0]  # No need to remove prefix for display
+            program_display_name = os.path.splitext(program_name)[0][2:]  # Strip the first 2 characters (number-)
             button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                             command=lambda name=program_name: open_program(name))
             button.place(x=column_x + 50, y=80 + idx * 40, width=screen_width // 5 - 100)  # Adjust button width
 
-    # Add Help/Resources section at the bottom
+    # Add Help/Resources section at the halfway point
     help_label = tk.Label(root, text="Help/Resources", **header_style)
-    help_label.place(x=50, y=screen_height - 150)
+    help_label.place(x=50, y=screen_height // 2)  # Halfway down the screen
     for idx, program_name in enumerate(help_resources):
-        program_display_name = os.path.splitext(program_name)[0]  # No need to remove 'h-' prefix
+        program_display_name = os.path.splitext(program_name)[0][2:]  # Strip the first 2 characters (5-)
         button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                         command=lambda name=program_name: open_program(name))
-        button.place(x=50 + idx * 250, y=screen_height - 100, width=200)  # Adjust button width
+        button.place(x=50 + idx * 250, y=screen_height // 2 + 50, width=200)  # Adjust button width
 
     # Add AnyDesk and Update buttons
     anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,

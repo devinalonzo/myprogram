@@ -6,24 +6,31 @@ import subprocess
 import sys
 from PIL import Image, ImageTk
 
-# Constants
+# Constants for GitHub URLs
 GITHUB_REPO_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
 BACKGROUND_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/bkgd.png"
 ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
-PROGRAMS_PATH = r"C:\DevinsProgram\Programs"
-UPDATER_PATH = r"C:\DevinsProgram\updater.pyw"
 UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
-BACKGROUND_PATH = os.path.join(r"C:\DevinsProgram", "bkgd.png")
+UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 GITHUB_VERSION_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/version.txt"
-CURRENT_VERSION = "1.0.0"  # Update this every time you make a new release
+CURRENT_VERSION = "1.0.0"
+
+# Helper function to resolve paths whether running from script or EXE
+def resource_path(relative_path):
+    """ Get the absolute path to the resource, works for PyInstaller bundled files """
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
+
+# Set the correct paths for programs and resources
+PROGRAMS_PATH = resource_path('subprograms')
+BACKGROUND_PATH = resource_path('bkgd.png')
 
 # Ensure directories exist
 def ensure_directories():
     if not os.path.exists(PROGRAMS_PATH):
         os.makedirs(PROGRAMS_PATH)
-    if not os.path.exists(os.path.dirname(BACKGROUND_PATH)):
-        os.makedirs(os.path.dirname(BACKGROUND_PATH))
 
 # Download the background image from GitHub
 def download_background():

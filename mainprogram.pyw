@@ -19,6 +19,8 @@ BACKGROUND_PATH = os.path.join(r"C:\DevinsProgram", "bkgd.png")
 def ensure_directories():
     if not os.path.exists(PROGRAMS_PATH):
         os.makedirs(PROGRAMS_PATH)
+    if not os.path.exists(os.path.dirname(BACKGROUND_PATH)):
+        os.makedirs(os.path.dirname(BACKGROUND_PATH))
 
 
 def download_background():
@@ -63,15 +65,12 @@ def program_selection():
 
     # Load the background image
     background_image = Image.open(BACKGROUND_PATH)
+    background_image = background_image.resize((800, 600), Image.LANCZOS)  # Resize to fit the window
     background_photo = ImageTk.PhotoImage(background_image)
 
     # Set the background
     background_label = tk.Label(root, image=background_photo)
     background_label.place(relwidth=1, relheight=1)
-
-    # Create Canvas for custom theme and background
-    canvas = tk.Canvas(root, width=800, height=600, bg="#2e3f4f", highlightthickness=0)
-    canvas.place(relwidth=1, relheight=1)
 
     # Style adjustments for readability
     button_bg = "#4e5d6c"  # Slightly lighter than background
@@ -83,15 +82,15 @@ def program_selection():
     for idx, program_name in enumerate(programs):
         program_display_name = os.path.splitext(program_name)[0]  # Remove extension from button label
         button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font, command=lambda name=program_name: open_program(name))
-        canvas.create_window(400, 150 + idx * 50, anchor="center", window=button)
+        button.place(x=350, y=150 + idx * 50)
 
     # Add an AnyDesk button in the top right corner
     anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font, command=open_anydesk)
-    canvas.create_window(750, 50, anchor="ne", window=anydesk_button)
+    anydesk_button.place(x=650, y=20)
 
     # Add an Update button in the top right corner
     update_button = Button(root, text="Update", bg=button_bg, fg=button_fg, font=button_font, command=update_main_program)
-    canvas.create_window(650, 50, anchor="ne", window=update_button)
+    update_button.place(x=550, y=20)
 
     root.mainloop()
 

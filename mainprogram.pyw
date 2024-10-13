@@ -23,47 +23,49 @@ PROGRAMS_PATH = resource_path('subprograms')
 BACKGROUND_PATH = resource_path('bkgd.png')
 ICON_PATH = resource_path('ico.png')  # Use the .png icon
 
-# Function to get the latest release version from GitHub
-def fetch_latest_version():
+# Fetch the build version from the passed argument or default to BETA
+CURRENT_VERSION = "BETA"
+if hasattr(sys, '_MEIPASS'):
+    # If running from PyInstaller bundle, get the passed version
+    try:
+        with open(resource_path('version.txt'), 'r') as version_file:
+            CURRENT_VERSION = version_file.read().strip()
+    except Exception as e:
+        print(f"Error loading version: {e}")
+else:
+    # During testing or when running without the EXE, set to BETA
+    CURRENT_VERSION = "BETA"
+
+# Check for updates and download latest EXE from GitHub if available
+def check_for_update():
     try:
         response = requests.get(GITHUB_RELEASES_URL)
         if response.status_code == 200:
             latest_release = response.json()
-            return latest_release["tag_name"], latest_release["html_url"]
+            latest_version = latest_release["tag_name"]
+            if latest_version != CURRENT_VERSION:
+                if download_latest_exe(latest_release["assets"][0]["browser_download_url"]):
+                    messagebox.showinfo("Update Available", f"New version {latest_version} downloaded. Please restart the program.")
+                else:
+                    messagebox.showerror("Update Failed", "Failed to download the latest EXE.")
+            else:
+                messagebox.showinfo("No Update", f"You are already using the latest version ({CURRENT_VERSION}).")
         else:
-            return "BETA", None
+            messagebox.showerror("Error", "Failed to check for updates.")
     except Exception as e:
-        print(f"Error fetching latest version: {e}")
-        return "BETA", None
+        messagebox.showerror("Error", f"Failed to check for updates: {e}")
 
-# Function to ask for version number during EXE build process
-def get_build_version():
-    version = input("Enter version for this build: ")
-    return version if version else "BETA"
-
-# Set the current version dynamically during runtime
-CURRENT_VERSION = get_build_version()
-
-# Check for updates and download the latest EXE from GitHub if available
-def check_for_update():
-    latest_version, _ = fetch_latest_version()
-    if latest_version != CURRENT_VERSION:
-        if download_latest_exe():
-            messagebox.showinfo("Update Available", f"New version {latest_version} downloaded. Please restart the program.")
-        else:
-            messagebox.showerror("Update Failed", "Failed to download the latest EXE.")
-    else:
-        messagebox.showinfo("No Update", f"You are already using the latest version ({CURRENT_VERSION}).")
-
-# Download the latest EXE from GitHub and replace the current one
-def download_latest_exe():
-    if release_url:
-        response = requests.get(f"{release_url}/download/mainprogram.exe")
+# Download the latest EXE from GitHub
+def download_latest_exe(download_url):
+    try:
+        response = requests.get(download_url)
         if response.status_code == 200:
             exe_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'mainprogram.exe')
             with open(exe_path, 'wb') as f:
                 f.write(response.content)
             return True
+    except Exception as e:
+        print(f"Error downloading EXE: {e}")
     return False
 
 # AnyDesk button behavior: Download if not found, otherwise open
@@ -78,7 +80,7 @@ def open_anydesk():
             messagebox.showerror("Error", "Failed to download AnyDesk.")
     subprocess.Popen(ANYDESK_PATH, shell=True)
 
-# Open a selected program from the EXE folder instead of .pyw files
+# Open a selected program from the EXE folder
 def open_program(program_name):
     exe_name = os.path.splitext(program_name)[0] + ".exe"
     program_path = resource_path(os.path.join('subprograms', exe_name))

@@ -18,6 +18,7 @@ UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 def resource_path(relative_path):
     """ Get the absolute path to the resource, works for PyInstaller bundled files """
     if hasattr(sys, '_MEIPASS'):
+        # If running from EXE, access bundled resources
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
@@ -121,16 +122,19 @@ def program_selection():
     button_fg = "#ffffff"
     button_font = ("Helvetica", 12, "bold")
 
-    # List programs from the local directory
-    programs = os.listdir(PROGRAMS_PATH)
-    if programs:
-        for idx, program_name in enumerate(programs):
-            program_display_name = os.path.splitext(program_name)[0]
-            button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
-                            command=lambda name=program_name: open_program(name))
-            button.place(x=350, y=150 + idx * 50)
+    # List programs from the local directory or EXE-bundled folder
+    if os.path.exists(PROGRAMS_PATH):
+        programs = os.listdir(PROGRAMS_PATH)
+        if programs:
+            for idx, program_name in enumerate(programs):
+                program_display_name = os.path.splitext(program_name)[0]
+                button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
+                                command=lambda name=program_name: open_program(name))
+                button.place(x=350, y=150 + idx * 50)
+        else:
+            messagebox.showinfo("No Programs Found", "No subprograms are available in the subprograms folder.")
     else:
-        messagebox.showinfo("No Programs Found", "No subprograms are available in the subprograms folder.")
+        messagebox.showinfo("No Programs Found", "Subprograms folder not found!")
 
     # AnyDesk button
     anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font, command=open_anydesk)
@@ -146,7 +150,7 @@ def program_selection():
 
     root.mainloop()
 
-# Open a selected program from the local folder
+# Open a selected program from the local folder or EXE-bundled folder
 def open_program(program_name):
     program_path = os.path.join(PROGRAMS_PATH, program_name)
     if os.path.exists(program_path):

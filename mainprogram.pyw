@@ -17,13 +17,14 @@ UPDATER_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "updater.pyw")
 def resource_path(relative_path):
     """ Get the absolute path to the resource, works for PyInstaller bundled files """
     if hasattr(sys, '_MEIPASS'):
+        # If running as a bundled EXE, resources are in the _MEIPASS directory
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
 # Set the correct paths for programs and resources
 PROGRAMS_PATH = resource_path('subprograms')
 BACKGROUND_PATH = resource_path('bkgd.png')
-ICON_PATH = resource_path('ico.ico')
+ICON_PATH = resource_path('ico.ico')  # Correctly resolve the icon path
 
 # Function to get the latest release version from GitHub
 def fetch_latest_version():
@@ -84,7 +85,7 @@ def download_latest_exe():
 # Open a selected program from the EXE folder instead of .pyw files
 def open_program(program_name):
     exe_name = os.path.splitext(program_name)[0] + ".exe"  # Look for the EXE version
-    program_path = resource_path(os.path.join('subprograms', exe_name))
+    program_path = resource_path(os.path.join('subprograms', exe_name))  # Ensure EXE path
     
     if os.path.exists(program_path):
         subprocess.Popen([program_path], shell=True)
@@ -95,7 +96,7 @@ def open_program(program_name):
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
-    root.iconbitmap(ICON_PATH)
+    root.iconbitmap(ICON_PATH)  # Use the resolved icon path
 
     # Group programs by their category prefix
     pump_programs = []

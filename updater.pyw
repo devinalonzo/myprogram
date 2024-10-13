@@ -22,7 +22,7 @@ SUBPROGRAMS_DIR = "C:\\DevinsProgram\\subprograms"
 if not os.path.exists(r"C:\DevinsProgram"):
     os.makedirs(r"C:\DevinsProgram")
 
-# PyInstaller spec template with escaped curly braces and corrected file paths and argument ordering
+# PyInstaller spec template with escaped curly braces and corrected argument ordering
 spec_template = """
 # -*- mode: python ; coding: utf-8 -*-
 block_cipher = None

@@ -1,102 +1,120 @@
 import os
+import sys
+import requests
 import tkinter as tk
 from tkinter import messagebox
-from tkinter import Label, Button
+from tkinter import ttk
 from PIL import Image, ImageTk
-import subprocess
 
-# Helper function to resolve file paths when bundled with PyInstaller
-def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
+# Constants for GitHub release comparison
+GITHUB_RELEASES_URL = "https://api.github.com/repos/devinalonzo/myprogram/releases/latest"
+TEMP_DIR = getattr(sys, '_MEIPASS', os.path.abspath("."))
 
-# Function to open a subprogram (EXE file)
-def open_subprogram(full_filename):
-    subprograms_dir = resource_path("subprograms")
-    full_prog_path = os.path.join(subprograms_dir, full_filename)
-    
-    if os.path.exists(full_prog_path):
-        subprocess.Popen([full_prog_path], shell=True)
-    else:
-        messagebox.showerror("EXE not found", f"{full_prog_path} not found.")
+class DevinsProgram:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Devins Program")
+        self.root.state('zoomed')  # Maximized window but not full-screen
 
-# Main GUI layout
-def create_gui():
-    root = tk.Tk()
-    root.title("My Program")
-    root.state('zoomed')  # Open maximized but not fullscreen
-    root.geometry("1200x700")  # Window size as requested
+        # Load background image
+        self.background_image_path = os.path.join(TEMP_DIR, 'bkgd.png')
+        self.set_background()
 
-    # Load and display the background image
-    background_image_path = resource_path("bkgd.png")
-    bg_image = Image.open(background_image_path)
-    bg_image = bg_image.resize((root.winfo_screenwidth(), root.winfo_screenheight()), Image.LANCZOS)
-    bg_image_tk = ImageTk.PhotoImage(bg_image)
+        # Set up columns and buttons
+        self.setup_columns()
 
-    background_label = Label(root, image=bg_image_tk)
-    background_label.place(relwidth=1, relheight=1)
+        # Version and action buttons (bottom right)
+        self.version = "1.0.0"  # Example version, this should be set dynamically during build
+        self.setup_version_and_action_buttons()
 
-    # Columns and Button Lists
-    column_titles = ["Pump", "CRIND", "Veeder-Root", "Passport", "Help/Resources"]
-    column_data = {title: [] for title in column_titles}
+    def set_background(self):
+        try:
+            image = Image.open(self.background_image_path)
+            background_image = ImageTk.PhotoImage(image.resize((self.root.winfo_screenwidth(), self.root.winfo_screenheight()), Image.ANTIALIAS))
+            background_label = tk.Label(self.root, image=background_image)
+            background_label.image = background_image
+            background_label.place(relwidth=1, relheight=1)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load background: {e}")
 
-    # Reading subprograms folder and organizing them into columns
-    subprograms_dir = resource_path("subprograms")
-    for filename in os.listdir(subprograms_dir):
-        if filename.endswith(".exe"):
-            display_name = filename[2:-4]  # Strip first 2 chars and the '.exe' extension for the button label
-            if filename.startswith("1-"):
-                column_data["Pump"].append((display_name, filename))  # Add both display name and full filename
-            elif filename.startswith("2-"):
-                column_data["CRIND"].append((display_name, filename))
-            elif filename.startswith("3-"):
-                column_data["Veeder-Root"].append((display_name, filename))
-            elif filename.startswith("4-"):
-                column_data["Passport"].append((display_name, filename))
-            elif filename.startswith("5-"):
-                column_data["Help/Resources"].append((display_name, filename))
+    def setup_columns(self):
+        columns_frame = tk.Frame(self.root, bg='white')
+        columns_frame.place(relx=0, rely=0, relwidth=1, relheight=0.5)
 
-    # Create buttons for each column
-    for i, (col_title, programs) in enumerate(column_data.items()):
-        col_label = Label(root, text=col_title, font=("Arial", 16, "bold"), bg="black", fg="red", padx=10, pady=5)
-        col_label.grid(row=0, column=i, sticky="n")
+        column_titles = ["Pump", "CRIND", "Veeder-Root", "Passport"]
+        for idx, title in enumerate(column_titles):
+            column_frame = tk.Frame(columns_frame, bd=2, relief="groove")
+            column_frame.place(relx=idx * 0.25, rely=0, relwidth=0.25, relheight=1)
+            label = tk.Label(column_frame, text=title, font=("Helvetica", 18, "bold"))
+            label.pack(pady=10)
+            self.add_buttons_to_column(column_frame, idx + 1)
 
-        for j, (display_name, full_filename) in enumerate(programs):
-            btn = Button(root, text=display_name, font=("Arial", 12), command=lambda p=full_filename: open_subprogram(p))
-            btn.grid(row=j+1, column=i, padx=10, pady=5, sticky="ew")
+    def add_buttons_to_column(self, column_frame, column_id):
+        subprograms_dir = os.path.join(TEMP_DIR, "subprograms")
+        if os.path.exists(subprograms_dir):
+            for file in os.listdir(subprograms_dir):
+                if file.startswith(f"{column_id}-") and file.endswith(".exe"):
+                    button_label = file[2:].replace(".exe", "")
+                    button = tk.Button(column_frame, text=button_label, command=lambda f=file: self.open_subprogram(f))
+                    button.pack(pady=5, fill='x')
 
-    # Help/Resources section positioning
-    help_section_row = max(len(programs) for programs in column_data.values()) + 1
-    help_label = Label(root, text="Help/Resources", font=("Arial", 16, "bold"), bg="black", fg="red", padx=10, pady=5)
-    help_label.grid(row=help_section_row, columnspan=4, sticky="ew")
+    def open_subprogram(self, filename):
+        subprogram_path = os.path.join(TEMP_DIR, "subprograms", filename)
+        os.system(f'"{subprogram_path}"')
 
-    # Anydesk and Update buttons
-    def open_anydesk():
-        anydesk_path = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
+    def setup_version_and_action_buttons(self):
+        actions_frame = tk.Frame(self.root, bg='white')
+        actions_frame.place(relx=0.75, rely=0.9, relwidth=0.25, relheight=0.1)
+
+        version_label = tk.Label(actions_frame, text=f"Version: {self.version}", font=("Helvetica", 12))
+        version_label.grid(row=0, column=0, padx=10, pady=5)
+
+        update_button = tk.Button(actions_frame, text="Update", command=self.check_for_updates)
+        update_button.grid(row=0, column=1, padx=10, pady=5)
+
+        anydesk_button = tk.Button(actions_frame, text="Anydesk", command=self.open_or_download_anydesk)
+        anydesk_button.grid(row=0, column=2, padx=10, pady=5)
+
+    def check_for_updates(self):
+        try:
+            response = requests.get(GITHUB_RELEASES_URL)
+            if response.status_code == 200:
+                latest_version = response.json()["tag_name"].strip("v")
+                if self.version < latest_version:
+                    # Download latest release
+                    release_asset_url = response.json()["assets"][0]["browser_download_url"]
+                    desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+                    release_filename = release_asset_url.split("/")[-1]
+                    save_path = os.path.join(desktop_path, release_filename)
+                    with requests.get(release_asset_url, stream=True) as r:
+                        with open(save_path, 'wb') as f:
+                            for chunk in r.iter_content(chunk_size=8192):
+                                f.write(chunk)
+                    messagebox.showinfo("Update", f"Downloaded latest version to: {save_path}")
+                else:
+                    messagebox.showinfo("Update", "No update needed, you are on the current version.")
+            else:
+                messagebox.showerror("Error", "Failed to check for updates.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error checking for updates: {e}")
+
+    def open_or_download_anydesk(self):
+        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+        anydesk_path = os.path.join(desktop_path, "AnyDesk.exe")
         if os.path.exists(anydesk_path):
-            subprocess.Popen([anydesk_path], shell=True)
+            os.system(f'"{anydesk_path}"')
         else:
-            # Download and save it to the desktop if not found
-            anydesk_url = "https://download.anydesk.com/AnyDesk.exe"
-            subprocess.run(["powershell", "-command", f"Invoke-WebRequest -Uri {anydesk_url} -OutFile {anydesk_path}"])
-            subprocess.Popen([anydesk_path], shell=True)
-
-    def check_update():
-        # Check for updates and download if needed
-        # (Logic to compare current version with GitHub releases)
-        pass
-
-    # Buttons for Anydesk and Update
-    anydesk_button = Button(root, text="AnyDesk", font=("Arial", 12), command=open_anydesk)
-    update_button = Button(root, text="Update", font=("Arial", 12), command=check_update)
-    
-    anydesk_button.grid(row=help_section_row + 1, column=2, padx=10, pady=20, sticky="e")
-    update_button.grid(row=help_section_row + 1, column=3, padx=10, pady=20, sticky="w")
-
-    root.mainloop()
+            try:
+                anydesk_download_url = "https://download.anydesk.com/AnyDesk.exe"
+                with requests.get(anydesk_download_url, stream=True) as r:
+                    with open(anydesk_path, 'wb') as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                os.system(f'"{anydesk_path}"')
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to download AnyDesk: {e}")
 
 if __name__ == "__main__":
-    create_gui()
+    root = tk.Tk()
+    app = DevinsProgram(root)
+    root.mainloop()

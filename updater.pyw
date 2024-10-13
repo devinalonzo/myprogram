@@ -22,7 +22,7 @@ SUBPROGRAMS_DIR = "C:\\DevinsProgram\\subprograms"
 if not os.path.exists(r"C:\DevinsProgram"):
     os.makedirs(r"C:\DevinsProgram")
 
-# PyInstaller spec template with escaped curly braces
+# PyInstaller spec template with escaped curly braces and corrected file paths and argument ordering
 spec_template = """
 # -*- mode: python ; coding: utf-8 -*-
 block_cipher = None
@@ -52,7 +52,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,
+    console=False
 )
 coll = COLLECT(
     exe,
@@ -62,7 +62,7 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='updater',
+    name='updater'
 )
 """
 
@@ -82,14 +82,14 @@ def create_spec_file(file_list):
     """Create a spec file based on the fetched GitHub files."""
     datas_entries = []
 
-    # Add the main program and updater
-    datas_entries.append(f"('{UPDATER_FILE_PATH}', 'updater.pyw')")
-    datas_entries.append(f"('{MAIN_PROGRAM_DESKTOP_PATH}', 'Desktop/{MAIN_PROGRAM_SCRIPT}')")
+    # Add the main program and updater with escaped backslashes
+    datas_entries.append(f"('{UPDATER_FILE_PATH.replace('\\', '\\\\')}', 'updater.pyw')")
+    datas_entries.append(f"('{MAIN_PROGRAM_DESKTOP_PATH.replace('\\', '\\\\')}', 'Desktop/{MAIN_PROGRAM_SCRIPT}')")
 
-    # Add the subprograms
+    # Add the subprograms with escaped backslashes
     for file in file_list:
         file_name = file['name']
-        file_entry = f"('{SUBPROGRAMS_DIR}\\{file_name}', 'subprograms/{file_name}')"
+        file_entry = f"('{SUBPROGRAMS_DIR.replace('\\', '\\\\')}\\\\{file_name}', 'subprograms/{file_name}')"
         datas_entries.append(file_entry)
 
     # Format datas for the spec file

@@ -26,24 +26,22 @@ ICON_PATH = resource_path('ico.png')  # Use the .png icon
 # Fetch the build version from the passed argument or default to BETA
 CURRENT_VERSION = "BETA"
 if hasattr(sys, '_MEIPASS'):
-    # If running from PyInstaller bundle, get the passed version
     try:
         with open(resource_path('version.txt'), 'r') as version_file:
             CURRENT_VERSION = version_file.read().strip()
     except Exception as e:
         print(f"Error loading version: {e}")
 else:
-    # During testing or when running without the EXE, set to BETA
     CURRENT_VERSION = "BETA"
 
-# Check for updates and download latest EXE from GitHub if available
+# Check for updates and avoid downloading older releases
 def check_for_update():
     try:
         response = requests.get(GITHUB_RELEASES_URL)
         if response.status_code == 200:
             latest_release = response.json()
             latest_version = latest_release["tag_name"]
-            if latest_version != CURRENT_VERSION:
+            if latest_version > CURRENT_VERSION:  # Only update if the latest version is newer
                 if download_latest_exe(latest_release["assets"][0]["browser_download_url"]):
                     messagebox.showinfo("Update Available", f"New version {latest_version} downloaded. Please restart the program.")
                 else:
@@ -94,6 +92,7 @@ def open_program(program_name):
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
+    root.attributes("-fullscreen", True)  # Fullscreen mode
 
     # Set the window icon using the .png file
     icon_image = ImageTk.PhotoImage(file=ICON_PATH)
@@ -121,16 +120,13 @@ def program_selection():
             elif program_name.startswith('h-'):
                 help_resources.append(program_name)
 
-    # Calculate necessary window size based on the number of programs
-    max_rows = max(len(pump_programs), len(crind_programs), len(veeder_root_programs), len(passport_programs), 8)
-    window_height = 100 + (max_rows * 40)
-    window_width = 900
-    root.geometry(f"{window_width}x{window_height}")
-    root.minsize(window_width, window_height)  # Set a minimum size for the window
+    # Set the screen size
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
 
     # Load and set background image
     background_image = Image.open(BACKGROUND_PATH)
-    background_image = background_image.resize((window_width, window_height), Image.LANCZOS)
+    background_image = background_image.resize((screen_width, screen_height), Image.LANCZOS)
     background_photo = ImageTk.PhotoImage(background_image)
     background_label = tk.Label(root, image=background_photo)
     background_label.place(relwidth=1, relheight=1)
@@ -140,41 +136,44 @@ def program_selection():
     button_fg = "#ffffff"
     button_font = ("Helvetica", 12, "bold")
 
-    # Create labels for the columns
+    # Header styling with red neon glow effect
+    header_style = {"bg": "#2c3e50", "fg": "#ff3b3b", "font": ("Helvetica", 16, "bold")}
+
+    # Create labels for the columns with header glow effect
     columns = [
-        ("Pump", pump_programs, 50),
-        ("CRIND", crind_programs, 250),
-        ("Veeder-Root", veeder_root_programs, 450),
-        ("Passport", passport_programs, 650)
+        ("Pump", pump_programs, screen_width // 5 * 0),
+        ("CRIND", crind_programs, screen_width // 5 * 1),
+        ("Veeder-Root", veeder_root_programs, screen_width // 5 * 2),
+        ("Passport", passport_programs, screen_width // 5 * 3)
     ]
 
     # Place programs into their respective columns and make buttons resizable
     for column_name, column_programs, column_x in columns:
-        column_label = tk.Label(root, text=column_name, bg=button_bg, fg=button_fg, font=button_font)
-        column_label.place(x=column_x, y=20)
+        column_label = tk.Label(root, text=column_name, **header_style)
+        column_label.place(x=column_x + 50, y=30)
         for idx, program_name in enumerate(column_programs[:8]):  # Limit each column to 8 programs
             program_display_name = os.path.splitext(program_name)[0][3:]  # Remove prefix
             button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                             command=lambda name=program_name: open_program(name))
-            button.place(x=column_x, y=60 + idx * 40)
+            button.place(x=column_x + 50, y=80 + idx * 40, width=screen_width // 5 - 100)  # Adjust button width
 
     # Add Help/Resources section at the bottom
-    help_label = tk.Label(root, text="Help/Resources", bg=button_bg, fg=button_fg, font=button_font)
-    help_label.place(x=50, y=window_height - 100)
+    help_label = tk.Label(root, text="Help/Resources", **header_style)
+    help_label.place(x=50, y=screen_height - 150)
     for idx, program_name in enumerate(help_resources):
         program_display_name = os.path.splitext(program_name)[0][2:]  # Remove 'h-' prefix
         button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                         command=lambda name=program_name: open_program(name))
-        button.place(x=50 + idx * 150, y=window_height - 60)
+        button.place(x=50 + idx * 250, y=screen_height - 100, width=200)  # Adjust button width
 
     # Add AnyDesk and Update buttons
     anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
                             command=open_anydesk)
-    anydesk_button.place(x=650, y=window_height - 100)
+    anydesk_button.place(x=screen_width - 300, y=screen_height - 150, width=200)
 
     update_button = Button(root, text="Check for Update", bg=button_bg, fg=button_fg, font=button_font,
                            command=check_for_update)
-    update_button.place(x=650, y=window_height - 60)
+    update_button.place(x=screen_width - 300, y=screen_height - 100, width=200)
 
     # Display version number in the bottom-right corner
     version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))

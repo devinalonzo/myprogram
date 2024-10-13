@@ -1,40 +1,80 @@
 import os
 import sys
 import requests
-import ctypes
-import psutil
 import subprocess
-import tkinter as tk
-from tkinter import messagebox, ttk
+import shutil
+import time
 
-# GitHub API URL for fetching subprograms
-GITHUB_API_URL = "https://api.github.com/repos/devinalonzo/myprogram/contents/"
-SUBPROGRAMS_PATH = "subprograms"
-UPDATER_SCRIPT = "updater.pyw"
-MAIN_PROGRAM_SCRIPT = "mainprogram.pyw"
+# GitHub URLs
+MAIN_PROGRAM_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/mainprogram.pyw"
+SUBPROGRAMS_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/subprograms/"
+UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
+GITHUB_SUBPROGRAMS_API = "https://api.github.com/repos/devinalonzo/myprogram/contents/subprograms"
 
-# File paths for the EXE and data
-UPDATER_FILE_PATH = "C:\\DevinsProgram\\updater.pyw"
-MAIN_PROGRAM_DESKTOP_PATH = os.path.join(os.path.expanduser('~'), 'Desktop', MAIN_PROGRAM_SCRIPT)
-SUBPROGRAMS_DIR = "C:\\DevinsProgram\\subprograms"
+# Paths
+DESKTOP_PATH = os.path.join(os.path.expanduser('~'), 'Desktop')  # Save EXE to the desktop
+WORKING_DIR = os.path.join(os.getcwd(), 'dist')  # Temporary working directory
+MAIN_PROGRAM_PATH = os.path.join(WORKING_DIR, 'mainprogram.pyw')
+UPDATER_PATH = os.path.join(WORKING_DIR, 'updater.pyw')
+SUBPROGRAMS_PATH = os.path.join(WORKING_DIR, 'subprograms')
 
-# Ensure the DevinsProgram directory exists
-if not os.path.exists(r"C:\DevinsProgram"):
-    os.makedirs(r"C:\DevinsProgram")
+# Create necessary directories
+if not os.path.exists(WORKING_DIR):
+    os.makedirs(WORKING_DIR)
+if not os.path.exists(SUBPROGRAMS_PATH):
+    os.makedirs(SUBPROGRAMS_PATH)
 
-# PyInstaller spec template with escaped curly braces and corrected argument ordering
-spec_template = """
+def log_message(message):
+    print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {message}")
+
+def download_file(url, dest_path):
+    """Download a file from a URL."""
+    log_message(f"Downloading {url}")
+    response = requests.get(url, stream=True)
+    if response.status_code == 200:
+        with open(dest_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        log_message(f"Downloaded {dest_path}")
+    else:
+        log_message(f"Failed to download {url}, status code: {response.status_code}")
+
+def get_subprogram_files():
+    """Fetch the list of files in the GitHub subprograms folder."""
+    log_message("Fetching subprogram list from GitHub...")
+    response = requests.get(GITHUB_SUBPROGRAMS_API)
+    if response.status_code == 200:
+        files = response.json()
+        return [file['name'] for file in files if file['type'] == 'file']
+    else:
+        log_message(f"Failed to fetch subprogram list from GitHub, status code: {response.status_code}")
+        return []
+
+def download_all_files():
+    """Download the main program, updater, and subprograms."""
+    download_file(MAIN_PROGRAM_URL, MAIN_PROGRAM_PATH)
+    download_file(UPDATER_URL, UPDATER_PATH)
+    
+    subprogram_files = get_subprogram_files()
+    if not subprogram_files:
+        log_message("No subprograms to download.")
+    for subprogram in subprogram_files:
+        download_file(f"{SUBPROGRAMS_URL}{subprogram}", os.path.join(SUBPROGRAMS_PATH, subprogram))
+
+def generate_spec_file():
+    """Generate the PyInstaller spec file dynamically."""
+    spec_content = f"""
 # -*- mode: python ; coding: utf-8 -*-
 block_cipher = None
 
 a = Analysis(
-    ['updater.pyw'],
-    pathex=['.'],
+    [r'{MAIN_PROGRAM_PATH}', r'{UPDATER_PATH}'],  # Use raw strings here to avoid Unicode escape issues
+    pathex=[r'{WORKING_DIR}'],  # Use raw strings here as well
     binaries=[],
-    datas={datas},
+    datas=[(r'{SUBPROGRAMS_PATH}', 'subprograms')],
     hiddenimports=[],
     hookspath=[],
-    hooksconfig={{}},
     runtime_hooks=[],
     excludes=[],
     win_no_prefer_redirects=False,
@@ -47,12 +87,13 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='updater',
+    name='MyProgram',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False
+    console=False,
+    icon=None,
 )
 coll = COLLECT(
     exe,
@@ -62,86 +103,35 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='updater'
+    name='MyProgram'
 )
 """
-
-def log_message(message):
-    print(message)
-
-def fetch_github_files(api_url, path):
-    """Fetch the list of files from a GitHub repository path."""
-    response = requests.get(api_url + path)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        log_message(f"Error fetching files from GitHub: {response.status_code}")
-        return []
-
-def create_spec_file(file_list):
-    """Create a spec file based on the fetched GitHub files."""
-    datas_entries = []
-
-    # Add the main program and updater with escaped backslashes
-    datas_entries.append(f"('{UPDATER_FILE_PATH.replace('\\', '\\\\')}', 'updater.pyw')")
-    datas_entries.append(f"('{MAIN_PROGRAM_DESKTOP_PATH.replace('\\', '\\\\')}', 'Desktop/{MAIN_PROGRAM_SCRIPT}')")
-
-    # Add the subprograms with escaped backslashes
-    for file in file_list:
-        file_name = file['name']
-        file_entry = f"('{SUBPROGRAMS_DIR.replace('\\', '\\\\')}\\\\{file_name}', 'subprograms/{file_name}')"
-        datas_entries.append(file_entry)
-
-    # Format datas for the spec file
-    datas_str = ", ".join(datas_entries)
-
-    # Create the spec content by formatting the template
-    spec_content = spec_template.format(datas=datas_str)
-
-    # Save the spec file
-    with open("updater.spec", "w") as spec_file:
+    with open(os.path.join(WORKING_DIR, "myprogram.spec"), 'w') as spec_file:
         spec_file.write(spec_content)
-    log_message("Spec file created successfully.")
+    log_message("Spec file generated.")
 
-def package_exe():
-    """Run PyInstaller to package everything into an EXE."""
-    log_message("Packaging the EXE using PyInstaller...")
-    os.system("pyinstaller --noconfirm updater.spec")
+def create_exe():
+    """Run PyInstaller to create the EXE."""
+    log_message("Running PyInstaller to create the EXE...")
+    subprocess.run([
+        sys.executable, "-m", "PyInstaller",
+        "--distpath", DESKTOP_PATH,  # Save the EXE to the desktop
+        os.path.join(WORKING_DIR, "myprogram.spec")
+    ])
+    log_message("EXE created successfully on the desktop.")
 
-def update_updater():
-    """Download and replace the updater."""
-    UPDATER_URL = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/updater.pyw"
-    log_message(f"Downloading the latest updater from {UPDATER_URL}")
-    response = requests.get(UPDATER_URL, stream=True)
-    if response.status_code == 200:
-        with open(UPDATER_FILE_PATH, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-        log_message(f"Updater successfully updated.")
-    else:
-        log_message(f"Failed to download the updater, status code: {response.status_code}")
-
-def main():
-    # Ensure directories exist
-    if not os.path.exists(SUBPROGRAMS_DIR):
-        os.makedirs(SUBPROGRAMS_DIR)
-
-    # Fetch the latest subprograms from GitHub
-    log_message("Fetching the subprograms from GitHub...")
-    subprogram_files = fetch_github_files(GITHUB_API_URL, SUBPROGRAMS_PATH)
-
-    # Create the PyInstaller spec file
-    log_message("Creating the PyInstaller spec file...")
-    create_spec_file(subprogram_files)
-
-    # Update the updater script itself
-    log_message("Updating the updater script...")
-    update_updater()
-
-    # Run PyInstaller to package the EXE
-    log_message("Running PyInstaller to build the EXE...")
-    package_exe()
+def clean_up():
+    """Remove temporary build files."""
+    log_message("Cleaning up temporary build files...")
+    shutil.rmtree(os.path.join(WORKING_DIR, 'build'), ignore_errors=True)
+    shutil.rmtree(os.path.join(WORKING_DIR, '__pycache__'), ignore_errors=True)
+    os.remove(os.path.join(WORKING_DIR, "myprogram.spec"))
+    log_message("Clean up complete.")
 
 if __name__ == "__main__":
-    main()
+    log_message("Starting EXE packaging process.")
+    download_all_files()
+    generate_spec_file()
+    create_exe()
+    clean_up()
+    log_message("Packaging process complete.")

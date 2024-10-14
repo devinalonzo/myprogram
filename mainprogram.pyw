@@ -3,12 +3,19 @@ from tkinter import Button
 from PIL import Image, ImageTk
 import os
 import subprocess
+import sys
 import datetime
 
-# Paths
-PROGRAMS_PATH = os.path.join(os.getcwd(), "subprograms")
-BACKGROUND_PATH = os.path.join(os.getcwd(), "bkgd.png")
-ICON_PATH = os.path.join(os.getcwd(), "ico.png")
+# Paths for temp directory when running from the EXE
+if getattr(sys, 'frozen', False):
+    base_path = sys._MEIPASS
+else:
+    base_path = os.path.abspath(".")
+
+# Paths inside the temp directory
+PROGRAMS_PATH = os.path.join(base_path, "subprograms")
+BACKGROUND_PATH = os.path.join(base_path, "bkgd.png")
+ICON_PATH = os.path.join(base_path, "ico.png")
 LOG_FILE_PATH = "C:\\DevinsProgramLog.txt"
 
 CURRENT_VERSION = "1.0.2"  # Adjust this as needed
@@ -43,8 +50,11 @@ def program_selection():
     root.title("Devin's Program")
 
     # Set the window icon using the .png file
-    icon_image = ImageTk.PhotoImage(file=ICON_PATH)
-    root.iconphoto(True, icon_image)
+    try:
+        icon_image = ImageTk.PhotoImage(file=ICON_PATH)
+        root.iconphoto(True, icon_image)
+    except Exception as e:
+        log_event(f"Failed to load icon: {str(e)}")
 
     # Group programs by their category prefix
     pump_programs = []
@@ -76,11 +86,14 @@ def program_selection():
     root.minsize(window_width, window_height)
 
     # Load and set background image
-    background_image = Image.open(BACKGROUND_PATH)
-    background_image = background_image.resize((window_width, window_height), Image.LANCZOS)
-    background_photo = ImageTk.PhotoImage(background_image)
-    background_label = tk.Label(root, image=background_photo)
-    background_label.place(relwidth=1, relheight=1)
+    try:
+        background_image = Image.open(BACKGROUND_PATH)
+        background_image = background_image.resize((window_width, window_height), Image.LANCZOS)
+        background_photo = ImageTk.PhotoImage(background_image)
+        background_label = tk.Label(root, image=background_photo)
+        background_label.place(relwidth=1, relheight=1)
+    except Exception as e:
+        log_event(f"Failed to load background: {str(e)}")
 
     # Button styling
     button_bg = "#4e5d6c"

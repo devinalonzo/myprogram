@@ -1,6 +1,6 @@
 import os
 import tkinter as tk
-from tkinter import Button
+from tkinter import Button, messagebox
 from PIL import Image, ImageTk
 import subprocess
 import logging
@@ -9,14 +9,14 @@ import sys
 # Function to get the temporary folder path where the EXE is running
 def get_temp_path(filename):
     if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, 'subprograms', filename)
+        return os.path.join(sys._MEIPASS, filename)
     else:
-        return os.path.join(os.getcwd(), 'subprograms', filename)
+        return os.path.join(os.getcwd(), filename)
 
 # Define paths using the temp folder mechanism
 ICON_PATH = get_temp_path('ico.png')
 BACKGROUND_PATH = get_temp_path('bkgd.png')
-PROGRAMS_PATH = get_temp_path('')  # Directory with subprogram EXEs
+PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
 VERSION_FILE_PATH = get_temp_path('version.txt')
 LOG_FILE_PATH = 'C:\\DevinsFolder\\mainprogram.log'
 
@@ -42,7 +42,7 @@ def open_program(program_name):
             logging.info(f"Opened program: {program_path}")
         else:
             logging.error(f"Program not found: {program_path}")
-            tk.messagebox.showerror("Error", f"Program not found: {program_name}")
+            messagebox.showerror("Error", f"Program not found: {program_name}")
     except Exception as e:
         logging.error(f"Error opening program: {e}")
 
@@ -70,17 +70,17 @@ def check_for_update():
         latest_version = response.json()['tag_name'].strip()
 
         if CURRENT_VERSION >= latest_version:
-            tk.messagebox.showinfo("Update", "You have the latest version!")
+            messagebox.showinfo("Update", "You have the latest version!")
         else:
-            tk.messagebox.showinfo("Update", f"New version available: {latest_version}")
+            messagebox.showinfo("Update", f"New version available: {latest_version}")
             update_url = response.json()['assets'][0]['browser_download_url']
             download_path = os.path.join(os.path.expanduser('~'), 'Desktop', f'DevinsProgram_{latest_version}.exe')
             subprocess.run(['curl', '-L', '-o', download_path, update_url])
-            tk.messagebox.showinfo("Update", f"Downloaded update to {download_path}")
+            messagebox.showinfo("Update", f"Downloaded update to {download_path}")
         logging.info(f"Update checked: Current version {CURRENT_VERSION}, Latest version {latest_version}")
     except Exception as e:
         logging.error(f"Error checking for update: {e}")
-        tk.messagebox.showerror("Error", "Could not check for updates")
+        messagebox.showerror("Error", "Could not check for updates")
 
 # Program selection UI
 def program_selection():
@@ -93,7 +93,7 @@ def program_selection():
         root.iconphoto(True, icon_image)
     except FileNotFoundError:
         logging.error(f"Icon file not found: {ICON_PATH}")
-        tk.messagebox.showerror("Error", f"Icon file not found: {ICON_PATH}")
+        messagebox.showerror("Error", f"Icon file not found: {ICON_PATH}")
 
     # Group programs by their category prefix
     pump_programs = []
@@ -129,7 +129,7 @@ def program_selection():
         background_label.place(relwidth=1, relheight=1)
     except FileNotFoundError:
         logging.error(f"Background image not found: {BACKGROUND_PATH}")
-        tk.messagebox.showerror("Error", f"Background image not found: {BACKGROUND_PATH}")
+        messagebox.showerror("Error", f"Background image not found: {BACKGROUND_PATH}")
 
     # Button styling
     button_bg = "#4e5d6c"
@@ -183,7 +183,6 @@ def program_selection():
     version_label.place(x=start_x + 3 * button_gap_x, y=520)
 
     root.mainloop()
-
 
 if __name__ == "__main__":
     program_selection()

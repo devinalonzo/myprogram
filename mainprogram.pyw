@@ -1,10 +1,11 @@
 import os
+import sys
 import tkinter as tk
 from tkinter import messagebox, Button, Label
 from PIL import Image, ImageTk
 import subprocess
 
-# Define paths
+# Define relative paths
 ICON_PATH = "ico.png"  # Replace with correct icon path
 BACKGROUND_PATH = "bkgd.png"
 PROGRAMS_PATH = "subprograms"
@@ -50,8 +51,12 @@ def program_selection():
     root.title("Devin's Program")
 
     # Set the window icon using the .png file
-    icon_image = ImageTk.PhotoImage(file=ICON_PATH)
-    root.iconphoto(True, icon_image)
+    icon_path = resource_path(ICON_PATH)
+    if os.path.exists(icon_path):
+        icon_image = ImageTk.PhotoImage(file=icon_path)
+        root.iconphoto(True, icon_image)
+    else:
+        messagebox.showerror("Icon not found", f"Icon file '{ICON_PATH}' not found.")
 
     # Group programs by their category prefix
     pump_programs = []
@@ -83,11 +88,15 @@ def program_selection():
     root.minsize(window_width, window_height)  # Set a minimum size for the window
 
     # Load and set background image
-    background_image = Image.open(BACKGROUND_PATH)
-    background_image = background_image.resize((window_width, window_height), Image.LANCZOS)
-    background_photo = ImageTk.PhotoImage(background_image)
-    background_label = tk.Label(root, image=background_photo)
-    background_label.place(relwidth=1, relheight=1)
+    background_path = resource_path(BACKGROUND_PATH)
+    if os.path.exists(background_path):
+        background_image = Image.open(background_path)
+        background_image = background_image.resize((window_width, window_height), Image.LANCZOS)
+        background_photo = ImageTk.PhotoImage(background_image)
+        background_label = tk.Label(root, image=background_photo)
+        background_label.place(relwidth=1, relheight=1)
+    else:
+        messagebox.showerror("Background not found", f"Background file '{BACKGROUND_PATH}' not found.")
 
     # Button styling
     button_bg = "#4e5d6c"

@@ -10,7 +10,7 @@ import logging
 CURRENT_VERSION = "1.0.2"  # Set your current version here
 LOG_DIR = "C:/DevinsFolder"
 LOG_PATH = os.path.join(LOG_DIR, "mainprogram.log")
-TEMP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
+TEMP_DIR = getattr(sys, '_MEIPASS', os.path.dirname(__file__))  # Temporary folder in case of EXE
 PROGRAMS_PATH = os.path.join(TEMP_DIR, 'subprograms')
 ICON_PATH = os.path.join(TEMP_DIR, 'ico.png')
 BACKGROUND_PATH = os.path.join(TEMP_DIR, 'bkgd.png')

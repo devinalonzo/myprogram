@@ -8,11 +8,16 @@ import logging
 
 # Constants for paths
 CURRENT_VERSION = "1.0.2"  # Set your current version here
-LOG_PATH = "C:/DevinsProgramLog.txt"
+LOG_DIR = "C:/DevinsFolder"
+LOG_PATH = os.path.join(LOG_DIR, "mainprogram.log")
 TEMP_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(__file__)
 PROGRAMS_PATH = os.path.join(TEMP_DIR, 'subprograms')
 ICON_PATH = os.path.join(TEMP_DIR, 'ico.png')
 BACKGROUND_PATH = os.path.join(TEMP_DIR, 'bkgd.png')
+
+# Ensure the log directory exists
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
 
 # Configure logging
 logging.basicConfig(filename=LOG_PATH, level=logging.INFO, format='%(asctime)s - %(message)s')

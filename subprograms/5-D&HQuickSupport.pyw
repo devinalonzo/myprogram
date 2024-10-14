@@ -14,7 +14,7 @@ else:
 # Build the path to qr.png based on the base path
 qr_image_path = os.path.join(base_path, 'qr.png')
 
-# Verify if the file exists (this is optional, but helps debug)
+# Verify if the file exists (for debugging)
 if not os.path.exists(qr_image_path):
     print(f"Error: {qr_image_path} not found!")
 

@@ -4,12 +4,20 @@ from tkinter import Button
 from PIL import Image, ImageTk
 import subprocess
 import logging
+import sys
 
-# Define paths
-ICON_PATH = os.path.join(os.getcwd(), 'subprograms', 'ico.png')
-BACKGROUND_PATH = os.path.join(os.getcwd(), 'subprograms', 'bkgd.png')
-PROGRAMS_PATH = os.path.join(os.getcwd(), 'subprograms')
-VERSION_FILE_PATH = os.path.join(os.getcwd(), 'version.txt')
+# Function to get the temporary folder path where the EXE is running
+def get_temp_path(filename):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, 'subprograms', filename)
+    else:
+        return os.path.join(os.getcwd(), 'subprograms', filename)
+
+# Define paths using the temp folder mechanism
+ICON_PATH = get_temp_path('ico.png')
+BACKGROUND_PATH = get_temp_path('bkgd.png')
+PROGRAMS_PATH = get_temp_path('')  # Directory with subprogram EXEs
+VERSION_FILE_PATH = get_temp_path('version.txt')
 LOG_FILE_PATH = 'C:\\DevinsFolder\\mainprogram.log'
 
 # Set up logging
@@ -105,7 +113,7 @@ def program_selection():
             elif program_name.startswith('5-'):
                 help_resources.append(program_name)
 
-    # Calculate necessary window size based on the number of programs
+    # Set up window size and background
     root.geometry("1200x600")
     root.minsize(1200, 600)  # Set a minimum size for the window
 

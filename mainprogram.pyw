@@ -88,8 +88,12 @@ def program_selection():
     root.title("Devin's Program")
 
     # Set the window icon using the .png file
-    icon_image = ImageTk.PhotoImage(file=ICON_PATH)
-    root.iconphoto(True, icon_image)
+    try:
+        icon_image = ImageTk.PhotoImage(file=ICON_PATH)
+        root.iconphoto(True, icon_image)
+    except FileNotFoundError:
+        logging.error(f"Icon file not found: {ICON_PATH}")
+        tk.messagebox.showerror("Error", f"Icon file not found: {ICON_PATH}")
 
     # Group programs by their category prefix
     pump_programs = []
@@ -118,10 +122,14 @@ def program_selection():
     root.minsize(1200, 600)  # Set a minimum size for the window
 
     # Load and set background image
-    background_image = Image.open(BACKGROUND_PATH)
-    background_photo = ImageTk.PhotoImage(background_image)
-    background_label = tk.Label(root, image=background_photo)
-    background_label.place(relwidth=1, relheight=1)
+    try:
+        background_image = Image.open(BACKGROUND_PATH)
+        background_photo = ImageTk.PhotoImage(background_image)
+        background_label = tk.Label(root, image=background_photo)
+        background_label.place(relwidth=1, relheight=1)
+    except FileNotFoundError:
+        logging.error(f"Background image not found: {BACKGROUND_PATH}")
+        tk.messagebox.showerror("Error", f"Background image not found: {BACKGROUND_PATH}")
 
     # Button styling
     button_bg = "#4e5d6c"

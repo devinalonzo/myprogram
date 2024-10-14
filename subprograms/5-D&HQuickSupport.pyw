@@ -9,7 +9,7 @@ if len(sys.argv) > 1:
 else:
     temp_folder = os.getcwd()  # Fallback to current folder if no argument is provided
 
-# Define paths using the passed temp folder path
+# Define paths using the passed temp folder path (directly in the temp folder, not subprograms)
 QR_IMAGE_PATH = os.path.join(temp_folder, 'qr.png')
 
 # Create the main window

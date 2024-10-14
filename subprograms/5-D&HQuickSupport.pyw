@@ -1,33 +1,34 @@
 import os
-import sys
-from tkinter import Tk, Label
+from tkinter import Tk, Label, Button, messagebox
 from PIL import Image, ImageTk
+import sys
 
-# Determine if running from an EXE (in the temporary folder)
-if getattr(sys, 'frozen', False):
-    # If running as an EXE, use the path of the temporary folder (sys._MEIPASS)
-    base_path = sys._MEIPASS
+# Get the temp folder path from the command-line argument
+if len(sys.argv) > 1:
+    temp_folder = sys.argv[1]
 else:
-    # Otherwise, use the current directory
-    base_path = os.path.dirname(os.path.abspath(__file__))
+    temp_folder = os.getcwd()  # Fallback to current folder if no argument is provided
 
-# Build the path to qr.png based on the base path
-qr_image_path = os.path.join(base_path, 'qr.png')
+# Define paths using the passed temp folder path
+QR_IMAGE_PATH = os.path.join(temp_folder, 'qr.png')
 
-# Verify if the file exists (for debugging)
-if not os.path.exists(qr_image_path):
-    print(f"Error: {qr_image_path} not found!")
-
-# Now you can open qr.png using this dynamically generated path
+# Create the main window
 root = Tk()
-root.title("D&H QuickSupport")
+root.title("D&H Quick Support")
+root.geometry("400x400")
 
-# Load the QR image
-qr_image = Image.open(qr_image_path)
-qr_photo = ImageTk.PhotoImage(qr_image)
+# Load and display the QR image
+try:
+    qr_image = Image.open(QR_IMAGE_PATH)
+    qr_photo = ImageTk.PhotoImage(qr_image)
+    qr_label = Label(root, image=qr_photo)
+    qr_label.pack(pady=20)
+except FileNotFoundError:
+    messagebox.showerror("Error", f"QR image not found: {QR_IMAGE_PATH}")
 
-# Display the QR code in the GUI
-qr_label = Label(root, image=qr_photo)
-qr_label.pack()
+# Add a close button
+close_button = Button(root, text="Close", command=root.quit)
+close_button.pack(pady=20)
 
+# Run the main loop
 root.mainloop()

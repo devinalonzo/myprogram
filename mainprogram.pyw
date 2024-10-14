@@ -14,7 +14,7 @@ CURRENT_VERSION = "1.0.0"  # This should be dynamically set during the build pro
 # Helper function to resolve file paths when bundled with PyInstaller
 def resource_path(relative_path):
     try:
-        base_path = sys._MEIPASS
+        base_path = sys._MEIPASS  # PyInstaller uses this temp folder for packaged files
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
@@ -65,9 +65,12 @@ def program_selection():
     passport_programs = []
     help_resources = []
 
+    # Use the resource_path to find the subprograms path
+    subprograms_path = resource_path(PROGRAMS_PATH)
+    
     # List programs from the local directory or EXE-bundled folder
-    if os.path.exists(PROGRAMS_PATH):
-        programs = os.listdir(PROGRAMS_PATH)
+    if os.path.exists(subprograms_path):
+        programs = os.listdir(subprograms_path)
         for program_name in programs:
             if program_name.startswith('1-'):
                 pump_programs.append(program_name)
@@ -125,7 +128,7 @@ def program_selection():
     help_label = tk.Label(root, text="Help/Resources", bg=button_bg, fg=button_fg, font=button_font)
     help_label.place(x=50, y=window_height - 100)
     for idx, program_name in enumerate(help_resources):
-        program_display_name = os.path.splitext(program_name)[0][2:]  # Remove 'h-' prefix
+        program_display_name = os.path.splitext(program_name)[0][2:]  # Remove '5-' prefix
         button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                         command=lambda name=program_name: open_program(name))
         button.place(x=50 + idx * 150, y=window_height - 60)

@@ -49,6 +49,12 @@ def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
 
+    # Set fixed window size of 1200x600
+    window_width = 1200
+    window_height = 600
+    root.geometry(f"{window_width}x{window_height}")
+    root.minsize(window_width, window_height)
+
     # Set the window icon using the .png file
     try:
         icon_image = ImageTk.PhotoImage(file=ICON_PATH)
@@ -78,13 +84,6 @@ def program_selection():
             elif program_name.startswith('5-'):
                 help_resources.append(program_name)
 
-    # Calculate necessary window size based on the number of programs
-    max_rows = max(len(pump_programs), len(crind_programs), len(veeder_root_programs), len(passport_programs), 8)
-    window_height = 700 + (max_rows * 40)
-    window_width = 900
-    root.geometry(f"{window_width}x{window_height}")
-    root.minsize(window_width, window_height)
-
     # Load and set background image
     try:
         background_image = Image.open(BACKGROUND_PATH)
@@ -102,43 +101,47 @@ def program_selection():
 
     # Create labels for the columns
     columns = [
-        ("Pump", pump_programs, 50),
-        ("CRIND", crind_programs, 250),
-        ("Veeder-Root", veeder_root_programs, 450),
-        ("Passport", passport_programs, 650)
+        ("Pump", pump_programs, 60),
+        ("CRIND", crind_programs, 380),
+        ("Veeder-Root", veeder_root_programs, 700),
+        ("Passport", passport_programs, 1020)
     ]
 
-    # Place programs into their respective columns and make buttons resizable
+    # Place programs into their respective columns, following the vertical spacing
     for column_name, column_programs, column_x in columns:
         column_label = tk.Label(root, text=column_name, bg=button_bg, fg=button_fg, font=button_font)
-        column_label.place(x=column_x, y=20)
+        column_label.place(x=column_x, y=100)
         for idx, program_name in enumerate(column_programs[:8]):  # Limit each column to 8 programs
             program_display_name = os.path.splitext(program_name)[0][2:]  # Remove prefix
             button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                             command=lambda name=program_name: open_program(name))
-            button.place(x=column_x, y=60 + idx * 40)
+            button.place(x=column_x, y=140 + idx * 60)
 
-    # Add Help/Resources section at the bottom, centered vertically
+    # Add Help/Resources section, spreading into two columns if necessary
     help_label = tk.Label(root, text="Help/Resources", bg=button_bg, fg=button_fg, font=button_font)
-    help_label.place(x=50, y=window_height - 200)  # Adjusted position
+    help_label.place(x=60, y=360)  # Adjusted position for Help/Resources label
+
+    # Adjust buttons for Help/Resources, flowing into a second column if needed
     for idx, program_name in enumerate(help_resources):
         program_display_name = os.path.splitext(program_name)[0][2:]  # Remove 'h-' prefix
+        x_offset = 60 + (idx // 3) * 320  # Every 3 buttons, move to the next column
+        y_offset = 400 + (idx % 3) * 60  # Position within the column
         button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
                         command=lambda name=program_name: open_program(name))
-        button.place(x=50 + idx * 150, y=window_height - 160)
+        button.place(x=x_offset, y=y_offset)
 
     # Add AnyDesk and Update buttons
-    anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
-                            command=open_anydesk)
-    anydesk_button.place(x=650, y=window_height - 200)
-
     update_button = Button(root, text="Check for Update", bg=button_bg, fg=button_fg, font=button_font,
                            command=check_for_update)
-    update_button.place(x=650, y=window_height - 160)
+    update_button.place(x=1020, y=400)
+
+    anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
+                            command=open_anydesk)
+    anydesk_button.place(x=940, y=400)
 
     # Display version number in the bottom-right corner
     version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
-    version_label.place(relx=1.0, rely=1.0, anchor='se', x=-10, y=-10)
+    version_label.place(x=1020, y=440)
 
     root.mainloop()
 

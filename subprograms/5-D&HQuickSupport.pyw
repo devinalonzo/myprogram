@@ -1,34 +1,40 @@
-import os
-from tkinter import Tk, Label, Button, messagebox
-from PIL import Image, ImageTk
 import sys
+import os
+from tkinter import Tk, Label, Button
+from PIL import Image, ImageTk
 
-# Get the temp folder path from the command-line argument
+# Function to handle closing the window
+def close_window():
+    root.destroy()
+
+# Check if the temp folder path is passed as an argument
 if len(sys.argv) > 1:
     temp_folder = sys.argv[1]
 else:
-    temp_folder = os.getcwd()  # Fallback to current folder if no argument is provided
+    temp_folder = os.getcwd()  # Default to the current directory if no argument is passed
 
-# Define paths using the passed temp folder path (directly in the temp folder, not subprograms)
-QR_IMAGE_PATH = os.path.join(temp_folder, 'qr.png')
+# Path to qr.png in the provided temp folder
+qr_image_path = os.path.join(temp_folder, 'qr.png')
+
+# Check if the file exists
+if not os.path.exists(qr_image_path):
+    print(f"Error: {qr_image_path} not found.")
+    sys.exit(1)
 
 # Create the main window
 root = Tk()
 root.title("D&H Quick Support")
-root.geometry("400x400")
 
-# Load and display the QR image
-try:
-    qr_image = Image.open(QR_IMAGE_PATH)
-    qr_photo = ImageTk.PhotoImage(qr_image)
-    qr_label = Label(root, image=qr_photo)
-    qr_label.pack(pady=20)
-except FileNotFoundError:
-    messagebox.showerror("Error", f"QR image not found: {QR_IMAGE_PATH}")
+# Load and display the QR code image
+qr_image = Image.open(qr_image_path)
+qr_photo = ImageTk.PhotoImage(qr_image)
 
-# Add a close button
-close_button = Button(root, text="Close", command=root.quit)
-close_button.pack(pady=20)
+qr_label = Label(root, image=qr_photo)
+qr_label.pack()
 
-# Run the main loop
+# Add a button to close the window
+close_button = Button(root, text="Close", command=close_window)
+close_button.pack()
+
+# Start the main GUI loop
 root.mainloop()

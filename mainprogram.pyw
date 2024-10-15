@@ -7,43 +7,30 @@ import logging
 import sys
 import shutil
 
-# Function to unpack resources to C:\DevinsFolder
-def unpack_resources():
-    temp_dir = getattr(sys, '_MEIPASS', os.getcwd())  # The temporary directory where PyInstaller unpacks
-    devins_folder = r"C:\DevinsFolder"
-    
-    if not os.path.exists(devins_folder):
-        os.makedirs(devins_folder)
+# Function to get the temporary folder path where the EXE is running
+def get_temp_path(filename):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    else:
+        return os.path.join(os.getcwd(), filename)
 
-    # Copy all files from temp_dir to C:\DevinsFolder
-    for item in os.listdir(temp_dir):
-        s = os.path.join(temp_dir, item)
-        d = os.path.join(devins_folder, item)
-        if os.path.isdir(s):
-            shutil.copytree(s, d, dirs_exist_ok=True)
-        else:
-            shutil.copy2(s, d)
-    return devins_folder
+# Define paths using the temp folder mechanism
+ICON_PATH = get_temp_path('ico.png')
+BACKGROUND_PATH = get_temp_path('bkgd.png')
+PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
+VERSION_FILE_PATH = get_temp_path('version.txt')
+LOG_FILE_PATH = 'C:\\DevinsFolder\\mainprogram.log'
 
-# Function to get the C:\DevinsFolder path where resources will be unpacked
-def get_devins_folder_path(filename):
-    devins_folder = r"C:\DevinsFolder"
-    return os.path.join(devins_folder, filename)
+# Clean up DevinsFolder to avoid conflicts
+def clean_devins_folder():
+    folder_path = 'C:\\DevinsFolder'
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
+    os.makedirs(folder_path, exist_ok=True)
 
 # Set up logging
-log_folder = r"C:\DevinsFolder"
-log_file = os.path.join(log_folder, "mainprogram.log")
-os.makedirs(log_folder, exist_ok=True)
-logging.basicConfig(filename=log_file, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Unpack resources
-unpack_resources()
-
-# Define paths using the C:\DevinsFolder mechanism
-ICON_PATH = get_devins_folder_path('ico.png')
-BACKGROUND_PATH = get_devins_folder_path('bkgd.png')
-PROGRAMS_PATH = get_devins_folder_path('subprograms')  # Directory with subprogram EXEs
-VERSION_FILE_PATH = get_devins_folder_path('version.txt')
+clean_devins_folder()
+logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Read the version number
 if os.path.exists(VERSION_FILE_PATH):

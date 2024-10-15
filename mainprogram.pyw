@@ -1,188 +1,209 @@
 import os
-import sys
+import tkinter as tk
+from tkinter import Button, messagebox
+from PIL import Image, ImageTk
 import subprocess
 import logging
-import requests
-import tkinter as tk
-from tkinter import messagebox
-from PIL import Image, ImageTk
+import sys
+import shutil
 
-# Define constants
-STATIC_FOLDER = 'C:\\DevinsFolder'
-ICON_PATH = os.path.join(STATIC_FOLDER, 'ico.png')
-BACKGROUND_PATH = os.path.join(STATIC_FOLDER, 'bkgd.png')
-LOG_FILE_PATH = os.path.join(STATIC_FOLDER, 'mainprogram.log')
+# Function to unpack resources to C:\DevinsFolder
+def unpack_resources():
+    temp_dir = getattr(sys, '_MEIPASS', os.getcwd())  # The temporary directory where PyInstaller unpacks
+    devins_folder = r"C:\DevinsFolder"
+    
+    if not os.path.exists(devins_folder):
+        os.makedirs(devins_folder)
 
-# Ensure that C:\DevinsFolder exists
-if not os.path.exists(STATIC_FOLDER):
-    os.makedirs(STATIC_FOLDER)
+    # Copy all files from temp_dir to C:\DevinsFolder
+    for item in os.listdir(temp_dir):
+        s = os.path.join(temp_dir, item)
+        d = os.path.join(devins_folder, item)
+        if os.path.isdir(s):
+            shutil.copytree(s, d, dirs_exist_ok=True)
+        else:
+            shutil.copy2(s, d)
+    return devins_folder
 
-# Set up logging in C:\DevinsFolder
-logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(message)s')
-logging.info("Main program started")
+# Function to get the C:\DevinsFolder path where resources will be unpacked
+def get_devins_folder_path(filename):
+    devins_folder = r"C:\DevinsFolder"
+    return os.path.join(devins_folder, filename)
 
-# Function to open subprograms, passing C:\DevinsFolder as an argument
+# Set up logging
+log_folder = r"C:\DevinsFolder"
+log_file = os.path.join(log_folder, "mainprogram.log")
+os.makedirs(log_folder, exist_ok=True)
+logging.basicConfig(filename=log_file, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Unpack resources
+unpack_resources()
+
+# Define paths using the C:\DevinsFolder mechanism
+ICON_PATH = get_devins_folder_path('ico.png')
+BACKGROUND_PATH = get_devins_folder_path('bkgd.png')
+PROGRAMS_PATH = get_devins_folder_path('subprograms')  # Directory with subprogram EXEs
+VERSION_FILE_PATH = get_devins_folder_path('version.txt')
+
+# Read the version number
+if os.path.exists(VERSION_FILE_PATH):
+    with open(VERSION_FILE_PATH, 'r') as version_file:
+        CURRENT_VERSION = version_file.read().strip()
+else:
+    CURRENT_VERSION = "BETA"
+
+logging.info(f"Starting Devin's Program - Version {CURRENT_VERSION}")
+
+# Function to open a subprogram
 def open_program(program_name):
     try:
-        program_path = os.path.join(STATIC_FOLDER, program_name)
-        logging.debug(f"Attempting to open {program_name} from {program_path}")
-        
-        # Launch the subprogram and pass the static folder as an argument
-        subprocess.Popen([program_path, STATIC_FOLDER])
+        program_path = os.path.join(PROGRAMS_PATH, program_name)
+        if os.path.exists(program_path):
+            subprocess.Popen([program_path], shell=True)
+            logging.info(f"Opened program: {program_path}")
+        else:
+            logging.error(f"Program not found: {program_path}")
+            messagebox.showerror("Error", f"Program not found: {program_name}")
     except Exception as e:
-        logging.error(f"Failed to open program {program_name}: {str(e)}")
-        messagebox.showerror("Error", f"Failed to open program {program_name}")
+        logging.error(f"Error opening program: {e}")
 
-# Function to check for updates by comparing the build version with GitHub releases
+# Function to open AnyDesk
+def open_anydesk():
+    try:
+        anydesk_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'AnyDesk.exe')
+        if os.path.exists(anydesk_path):
+            subprocess.Popen([anydesk_path], shell=True)
+        else:
+            logging.info("AnyDesk not found, downloading...")
+            url = "https://download.anydesk.com/AnyDesk.exe"
+            download_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'AnyDesk.exe')
+            subprocess.run(['curl', '-o', download_path, url])
+            subprocess.Popen([download_path], shell=True)
+    except Exception as e:
+        logging.error(f"Error opening AnyDesk: {e}")
+
+# Function to check for updates
 def check_for_update():
     try:
-        response = requests.get('https://api.github.com/repos/devinalonzo/myprogram/releases/latest')
-        latest_version = response.json()['tag_name']
-        
-        current_version = read_version()
-        logging.info(f"Current version: {current_version}, Latest version: {latest_version}")
-        
-        if current_version < latest_version:
-            # Update available
-            messagebox.showinfo("Update Available", f"New version {latest_version} available!")
-            download_and_update(latest_version)
+        import requests
+        release_url = "https://api.github.com/repos/devinalonzo/myprogram/releases/latest"
+        response = requests.get(release_url)
+        latest_version = response.json()['tag_name'].strip()
+
+        if CURRENT_VERSION >= latest_version:
+            messagebox.showinfo("Update", "You have the latest version!")
         else:
-            # No update necessary
-            messagebox.showinfo("Up to Date", f"You have the latest version: {current_version}")
-            logging.info("No update necessary")
+            messagebox.showinfo("Update", f"New version available: {latest_version}")
+            update_url = response.json()['assets'][0]['browser_download_url']
+            download_path = os.path.join(os.path.expanduser('~'), 'Desktop', f'DevinsProgram_{latest_version}.exe')
+            subprocess.run(['curl', '-L', '-o', download_path, update_url])
+            messagebox.showinfo("Update", f"Downloaded update to {download_path}")
+        logging.info(f"Update checked: Current version {CURRENT_VERSION}, Latest version {latest_version}")
     except Exception as e:
-        logging.error(f"Failed to check for updates: {str(e)}")
-        messagebox.showerror("Update Error", "Failed to check for updates.")
+        logging.error(f"Error checking for update: {e}")
+        messagebox.showerror("Error", "Could not check for updates")
 
-# Function to download and update the program
-def download_and_update(latest_version):
-    try:
-        update_url = f'https://github.com/devinalonzo/myprogram/releases/download/{latest_version}/DevinsProgram_{latest_version}.exe'
-        update_path = os.path.join(STATIC_FOLDER, f'DevinsProgram_{latest_version}.exe')
-        
-        response = requests.get(update_url)
-        with open(update_path, 'wb') as f:
-            f.write(response.content)
-        logging.info(f"Downloaded update: {update_path}")
-        
-        # Run the new version after download
-        subprocess.Popen([update_path])
-        sys.exit(0)
-    except Exception as e:
-        logging.error(f"Failed to download update: {str(e)}")
-        messagebox.showerror("Update Error", "Failed to download the update.")
-
-# Function to read the current version from version.txt
-def read_version():
-    try:
-        with open(os.path.join(STATIC_FOLDER, "version.txt"), 'r') as f:
-            version = f.read().strip()
-            return version
-    except Exception as e:
-        logging.error(f"Failed to read version: {str(e)}")
-        return "BETA"
-
-# GUI to show the available programs
+# Program selection UI
 def program_selection():
     root = tk.Tk()
     root.title("Devin's Program")
-    
-    # Set window size to 1200x600
-    window_width = 1200
-    window_height = 600
-    root.geometry(f"{window_width}x{window_height}")
-    
+
     # Set the window icon using the .png file
     try:
         icon_image = ImageTk.PhotoImage(file=ICON_PATH)
         root.iconphoto(True, icon_image)
-    except Exception as e:
-        logging.error(f"Failed to load icon: {str(e)}")
+    except FileNotFoundError:
+        logging.error(f"Icon file not found: {ICON_PATH}")
+        messagebox.showerror("Error", f"Icon file not found: {ICON_PATH}")
+
+    # Group programs by their category prefix
+    pump_programs = []
+    crind_programs = []
+    veeder_root_programs = []
+    passport_programs = []
+    help_resources = []
+
+    # List programs from the local directory or EXE-bundled folder
+    if os.path.exists(PROGRAMS_PATH):
+        programs = os.listdir(PROGRAMS_PATH)
+        for program_name in programs:
+            if program_name.startswith('1-'):
+                pump_programs.append(program_name)
+            elif program_name.startswith('2-'):
+                crind_programs.append(program_name)
+            elif program_name.startswith('3-'):
+                veeder_root_programs.append(program_name)
+            elif program_name.startswith('4-'):
+                passport_programs.append(program_name)
+            elif program_name.startswith('5-'):
+                help_resources.append(program_name)
+
+    # Set up window size and background
+    root.geometry("1200x600")
+    root.minsize(1200, 600)  # Set a minimum size for the window
 
     # Load and set background image
     try:
         background_image = Image.open(BACKGROUND_PATH)
-        background_image = background_image.resize((window_width, window_height), Image.LANCZOS)
         background_photo = ImageTk.PhotoImage(background_image)
         background_label = tk.Label(root, image=background_photo)
         background_label.place(relwidth=1, relheight=1)
-    except Exception as e:
-        logging.error(f"Failed to load background: {str(e)}")
+    except FileNotFoundError:
+        logging.error(f"Background image not found: {BACKGROUND_PATH}")
+        messagebox.showerror("Error", f"Background image not found: {BACKGROUND_PATH}")
 
     # Button styling
     button_bg = "#4e5d6c"
     button_fg = "#ffffff"
     button_font = ("Helvetica", 12, "bold")
 
-    # Load available programs from C:\DevinsFolder
-    program_names = []
-    if os.path.exists(STATIC_FOLDER):
-        program_names = [f for f in os.listdir(STATIC_FOLDER) if f.endswith('.exe')]
+    # Layout rules
+    start_x = 60
+    start_y = 140
+    button_gap_x = 320
+    button_gap_y = 60
 
-    # Divide programs by type (prefix-based)
-    pump_programs = [p for p in program_names if p.startswith('1-')]
-    crind_programs = [p for p in program_names if p.startswith('2-')]
-    veeder_root_programs = [p for p in program_names if p.startswith('3-')]
-    passport_programs = [p for p in program_names if p.startswith('4-')]
-    help_resources = [p for p in program_names if p.startswith('5-')]
-
-    # Set positions for the program buttons
+    # Create labels for the columns
     columns = [
-        ("Pump", pump_programs, 60, 140),
-        ("CRIND", crind_programs, 380, 140),
-        ("Veeder-Root", veeder_root_programs, 700, 140),
-        ("Passport", passport_programs, 1020, 140)
+        ("Pump", pump_programs, start_x),
+        ("CRIND", crind_programs, start_x + button_gap_x),
+        ("Veeder-Root", veeder_root_programs, start_x + 2 * button_gap_x),
+        ("Passport", passport_programs, start_x + 3 * button_gap_x)
     ]
 
-    # Create and place buttons for programs
-    for column_name, column_programs, column_x, column_y in columns:
+    # Place programs into their respective columns and make buttons resizable
+    for column_name, column_programs, column_x in columns:
         column_label = tk.Label(root, text=column_name, bg=button_bg, fg=button_fg, font=button_font)
-        column_label.place(x=column_x, y=column_y - 40)
-        
-        for idx, program in enumerate(column_programs):
-            display_name = program[2:-4]  # Remove prefix and extension
-            button = tk.Button(root, text=display_name, bg=button_bg, fg=button_fg, font=button_font,
-                               command=lambda p=program: open_program(p))
-            button.place(x=column_x, y=column_y + (60 * idx))
+        column_label.place(x=column_x, y=start_y - 60)
+        for idx, program_name in enumerate(column_programs[:8]):  # Limit each column to 8 programs
+            program_display_name = os.path.splitext(program_name)[0][2:]  # Remove prefix (1-, 2-, etc.)
+            button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
+                            command=lambda name=program_name: open_program(name))
+            button.place(x=column_x, y=start_y + idx * button_gap_y)
 
-    # Add Help/Resources buttons
+    # Add Help/Resources section at the bottom
     help_label = tk.Label(root, text="Help/Resources", bg=button_bg, fg=button_fg, font=button_font)
-    help_label.place(x=60, y=400)
-    
-    for idx, help_program in enumerate(help_resources):
-        display_name = help_program[2:-4]  # Remove prefix and extension
-        button = tk.Button(root, text=display_name, bg=button_bg, fg=button_fg, font=button_font,
-                           command=lambda p=help_program: open_program(p))
-        button.place(x=60 + (idx % 3) * 320, y=400 + (60 * (idx // 3)))
+    help_label.place(x=start_x, y=400 - 60)
+    for idx, program_name in enumerate(help_resources):
+        program_display_name = os.path.splitext(program_name)[0][2:]  # Remove '5-' prefix
+        button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
+                        command=lambda name=program_name: open_program(name))
+        button.place(x=start_x + (idx // 3) * 150, y=400 + (idx % 3) * 60)
 
     # Add AnyDesk and Update buttons
-    anydesk_button = tk.Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font, command=open_anydesk)
-    anydesk_button.place(x=1000, y=460)
+    update_button = Button(root, text="Check for Update", bg=button_bg, fg=button_fg, font=button_font,
+                           command=check_for_update)
+    update_button.place(x=start_x + 3 * button_gap_x, y=460)
 
-    update_button = tk.Button(root, text="Check for Update", bg=button_bg, fg=button_fg, font=button_font,
-                              command=check_for_update)
-    update_button.place(x=1120, y=460)
+    anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
+                            command=open_anydesk)
+    anydesk_button.place(x=start_x + 3 * button_gap_x - 120, y=460)
 
-    # Display the current version
-    version_label = tk.Label(root, text=f"Version: {read_version()}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
-    version_label.place(x=1120, y=520)
+    # Display version number in the bottom-right corner
+    version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
+    version_label.place(x=start_x + 3 * button_gap_x, y=520)
 
     root.mainloop()
-
-# Function to open AnyDesk
-def open_anydesk():
-    anydesk_path = os.path.join(STATIC_FOLDER, "AnyDesk.exe")
-    if os.path.exists(anydesk_path):
-        subprocess.Popen([anydesk_path])
-    else:
-        logging.info("AnyDesk not found, downloading...")
-        # Download AnyDesk if not present
-        url = 'https://download.anydesk.com/AnyDesk.exe'
-        anydesk_dest = os.path.join(STATIC_FOLDER, 'AnyDesk.exe')
-        response = requests.get(url)
-        with open(anydesk_dest, 'wb') as f:
-            f.write(response.content)
-        subprocess.Popen([anydesk_dest])
 
 if __name__ == "__main__":
     program_selection()

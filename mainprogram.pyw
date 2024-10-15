@@ -25,19 +25,35 @@ LOG_FILE_PATH = 'C:\\DevinsFolder\\mainprogram.log'
 def clean_devins_folder():
     folder_path = 'C:\\DevinsFolder'
     if os.path.exists(folder_path):
-        shutil.rmtree(folder_path)
+        try:
+            shutil.rmtree(folder_path)
+        except PermissionError as e:
+            logging.error(f"Permission denied when trying to delete {folder_path}: {e}")
+            messagebox.showerror("Error", f"Permission denied when trying to delete {folder_path}. Please check folder permissions.")
     os.makedirs(folder_path, exist_ok=True)
 
 # Set up logging
-clean_devins_folder()
-logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+try:
+    clean_devins_folder()
+    logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+except PermissionError as e:
+    logging.error(f"Permission denied when creating log file or folder: {e}")
+    messagebox.showerror("Error", f"Permission denied when trying to create log file. Please check folder permissions.")
+    sys.exit(1)  # Exit the program if logging can't be set up
 
-# Read the version number
-if os.path.exists(VERSION_FILE_PATH):
-    with open(VERSION_FILE_PATH, 'r') as version_file:
-        CURRENT_VERSION = version_file.read().strip()
-else:
-    CURRENT_VERSION = "BETA"
+# Read the version number with error handling for permission issues
+CURRENT_VERSION = "BETA"  # Default version if unable to read
+
+try:
+    if os.path.exists(VERSION_FILE_PATH):
+        with open(VERSION_FILE_PATH, 'r') as version_file:
+            CURRENT_VERSION = version_file.read().strip()
+except PermissionError as e:
+    logging.error(f"Permission denied when reading version file: {e}")
+    messagebox.showerror("Error", f"Permission denied when reading version file. Defaulting to BETA.")
+except FileNotFoundError:
+    logging.error(f"Version file not found: {VERSION_FILE_PATH}")
+    messagebox.showinfo("Info", f"Version file not found. Defaulting to BETA.")
 
 logging.info(f"Starting Devin's Program - Version {CURRENT_VERSION}")
 

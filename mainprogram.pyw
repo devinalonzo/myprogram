@@ -7,19 +7,17 @@ import logging
 import sys
 import shutil
 
-# Function to get the temporary folder path where the EXE is running
-def get_temp_path(filename):
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, filename)
-    else:
-        return os.path.join(os.getcwd(), filename)
+# Function to get the DevinsFolder path where files will be extracted
+def get_devins_path(filename):
+    devins_folder = 'C:\\DevinsFolder'
+    return os.path.join(devins_folder, filename)
 
-# Define paths using the temp folder mechanism
-ICON_PATH = get_temp_path('ico.png')
-BACKGROUND_PATH = get_temp_path('bkgd.png')
-PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
-VERSION_FILE_PATH = get_temp_path('version.txt')
-LOG_FILE_PATH = 'C:\\DevinsFolder\\mainprogram.log'
+# Define paths using the new folder mechanism
+ICON_PATH = get_devins_path('ico.png')
+BACKGROUND_PATH = get_devins_path('bkgd.png')
+PROGRAMS_PATH = get_devins_path('subprograms')  # Directory with subprogram EXEs
+VERSION_FILE_PATH = get_devins_path('version.txt')
+LOG_FILE_PATH = get_devins_path('mainprogram.log')
 
 # Clean up DevinsFolder to avoid conflicts
 def clean_devins_folder():
@@ -32,9 +30,29 @@ def clean_devins_folder():
             messagebox.showerror("Error", f"Permission denied when trying to delete {folder_path}. Please check folder permissions.")
     os.makedirs(folder_path, exist_ok=True)
 
+# Unpack files to DevinsFolder from the EXE bundle
+def unpack_files():
+    try:
+        if hasattr(sys, '_MEIPASS'):
+            temp_dir = sys._MEIPASS
+            files_to_unpack = ['ico.png', 'bkgd.png', 'version.txt']
+            for file in files_to_unpack:
+                source_path = os.path.join(temp_dir, file)
+                dest_path = get_devins_path(file)
+                shutil.copyfile(source_path, dest_path)
+            
+            # Unpack the subprograms folder
+            subprograms_src = os.path.join(temp_dir, 'subprograms')
+            subprograms_dest = get_devins_path('subprograms')
+            shutil.copytree(subprograms_src, subprograms_dest)
+    except Exception as e:
+        logging.error(f"Error unpacking files: {e}")
+        messagebox.showerror("Error", f"Error unpacking files. {e}")
+
 # Set up logging
 try:
     clean_devins_folder()
+    unpack_files()  # Unpack necessary files to DevinsFolder
     logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 except PermissionError as e:
     logging.error(f"Permission denied when creating log file or folder: {e}")

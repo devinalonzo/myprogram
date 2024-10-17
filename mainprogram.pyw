@@ -7,78 +7,36 @@ import logging
 import sys
 import shutil
 
-# Function to get the DevinsFolder path where files will be extracted
-def get_devins_path(filename):
-    devins_folder = 'C:\\DevinsFolder'
-    return os.path.join(devins_folder, filename)
+# Function to get the temporary folder path where the EXE is running
+def get_temp_path(filename):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    else:
+        return os.path.join(os.getcwd(), filename)
 
-# Define paths using the new folder mechanism
-ICON_PATH = get_devins_path('ico.png')
-BACKGROUND_PATH = get_devins_path('bkgd.png')
-PROGRAMS_PATH = get_devins_path('subprograms')  # Directory with subprogram EXEs
-VERSION_FILE_PATH = get_devins_path('version.txt')
-LOG_FILE_PATH = get_devins_path('mainprogram.log')
+# Function to get the resources folder path for a specific subprogram
+def get_subprogram_resources_path(subprogram_name, filename):
+    temp_dir = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.getcwd()
+    resources_folder = os.path.join(temp_dir, 'subprograms', subprogram_name, 'Resources')
+    return os.path.join(resources_folder, filename)
 
-# Clean up DevinsFolder to avoid conflicts
-def clean_devins_folder():
-    folder_path = 'C:\\DevinsFolder'
-    if os.path.exists(folder_path):
-        try:
-            shutil.rmtree(folder_path)
-            logging.info(f"Deleted folder: {folder_path}")
-        except PermissionError as e:
-            logging.error(f"Permission denied when trying to delete {folder_path}: {e}")
-            messagebox.showerror("Error", f"Permission denied when trying to delete {folder_path}. Please check folder permissions.")
-    os.makedirs(folder_path, exist_ok=True)
-
-# Unpack files to DevinsFolder from the EXE bundle
-def unpack_files():
-    try:
-        if hasattr(sys, '_MEIPASS'):
-            temp_dir = sys._MEIPASS
-            files_to_unpack = ['ico.png', 'bkgd.png', 'version.txt']
-            for file in files_to_unpack:
-                source_path = os.path.join(temp_dir, file)
-                dest_path = get_devins_path(file)
-                shutil.copyfile(source_path, dest_path)
-                logging.info(f"Copied {source_path} to {dest_path}")
-            
-            # Unpack the subprograms folder
-            subprograms_src = os.path.join(temp_dir, 'subprograms')
-            subprograms_dest = get_devins_path('subprograms')
-            if os.path.exists(subprograms_src):
-                shutil.copytree(subprograms_src, subprograms_dest)
-                logging.info(f"Copied subprograms from {subprograms_src} to {subprograms_dest}")
-            else:
-                logging.error(f"Subprograms folder not found: {subprograms_src}")
-    except Exception as e:
-        logging.error(f"Error unpacking files: {e}")
-        messagebox.showerror("Error", f"Error unpacking files. {e}")
+# Define paths using the temp folder mechanism
+ICON_PATH = get_temp_path('ico.png')
+BACKGROUND_PATH = get_temp_path('bkgd.png')
+PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
+VERSION_FILE_PATH = get_temp_path('version.txt')
+LOG_FILE_PATH = get_temp_path('mainprogram.log')
 
 # Set up logging
-try:
-    clean_devins_folder()
-    unpack_files()  # Unpack necessary files to DevinsFolder
-    logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-    logging.info("Logging started.")
-except PermissionError as e:
-    logging.error(f"Permission denied when creating log file or folder: {e}")
-    messagebox.showerror("Error", f"Permission denied when trying to create log file. Please check folder permissions.")
-    sys.exit(1)  # Exit the program if logging can't be set up
+os.makedirs('C:\\DevinsFolder', exist_ok=True)
+logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Read the version number with error handling for permission issues
-CURRENT_VERSION = "BETA"  # Default version if unable to read
-
-try:
-    if os.path.exists(VERSION_FILE_PATH):
-        with open(VERSION_FILE_PATH, 'r') as version_file:
-            CURRENT_VERSION = version_file.read().strip()
-except PermissionError as e:
-    logging.error(f"Permission denied when reading version file: {e}")
-    messagebox.showerror("Error", f"Permission denied when reading version file. Defaulting to BETA.")
-except FileNotFoundError:
-    logging.error(f"Version file not found: {VERSION_FILE_PATH}")
-    messagebox.showinfo("Info", f"Version file not found. Defaulting to BETA.")
+# Read the version number
+if os.path.exists(VERSION_FILE_PATH):
+    with open(VERSION_FILE_PATH, 'r') as version_file:
+        CURRENT_VERSION = version_file.read().strip()
+else:
+    CURRENT_VERSION = "BETA"
 
 logging.info(f"Starting Devin's Program - Version {CURRENT_VERSION}")
 

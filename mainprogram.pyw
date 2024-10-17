@@ -6,6 +6,7 @@ import subprocess
 import logging
 import sys
 import shutil
+import time
 
 # Function to get the path from the temporary folder (_MEIPASS)
 def get_temp_path(filename):
@@ -20,6 +21,9 @@ BACKGROUND_PATH = get_temp_path('bkgd.png')
 PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
 VERSION_FILE_PATH = get_temp_path('version.txt')
 LOG_FILE_PATH = 'C:\\DevinsFolder\\mainprogram.log'
+
+# Delay to ensure files are unpacked and available
+time.sleep(2)  # Wait for 2 seconds to ensure unpacking process is completed
 
 # Ensure DevinsFolder exists and clean it up on startup
 def clean_devins_folder():

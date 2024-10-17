@@ -231,9 +231,9 @@ def program_selection():
     root.mainloop()
 
 # Set up the program
-setup_logging()
 clean_devins_folder()  # Ensure clean startup
 unpack_files()  # Unpack necessary files
+setup_logging()  # Set up logging after cleanup and file unpacking
 setup_version_file()  # Copy version.txt to a writable location
 
 # Read the version number

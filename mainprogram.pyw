@@ -7,46 +7,82 @@ import logging
 import sys
 import shutil
 
-# Function to get the temporary folder path where the EXE is running
-def get_temp_path(filename):
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, filename)
-    else:
-        return os.path.join(os.getcwd(), filename)
+# Define paths
+DEVINS_FOLDER = "C:\\DevinsFolder"
+ICON_PATH = os.path.join(DEVINS_FOLDER, 'ico.png')
+BACKGROUND_PATH = os.path.join(DEVINS_FOLDER, 'bkgd.png')
+PROGRAMS_PATH = os.path.join(DEVINS_FOLDER, 'subprograms')  # Directory with subprogram EXEs
+VERSION_FILE_PATH = os.path.join(DEVINS_FOLDER, 'version.txt')
+LOG_FILE_PATH = os.path.join(DEVINS_FOLDER, 'mainprogram.log')
 
-# Function to get the resources folder path for a specific subprogram
-def get_subprogram_resources_path(subprogram_name, filename):
-    temp_dir = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.getcwd()
-    resources_folder = os.path.join(temp_dir, 'subprograms', subprogram_name, 'Resources')
-    return os.path.join(resources_folder, filename)
+# Ensure DevinsFolder exists and clean it up on startup
+def clean_devins_folder():
+    try:
+        if os.path.exists(DEVINS_FOLDER):
+            shutil.rmtree(DEVINS_FOLDER)
+        os.makedirs(DEVINS_FOLDER, exist_ok=True)
+    except PermissionError as e:
+        logging.error(f"Permission denied when trying to delete {DEVINS_FOLDER}: {e}")
+        messagebox.showerror("Error", f"Permission denied when trying to delete {DEVINS_FOLDER}. Please check folder permissions.")
+        sys.exit(1)
 
-# Define paths using the temp folder mechanism
-ICON_PATH = get_temp_path('ico.png')
-BACKGROUND_PATH = get_temp_path('bkgd.png')
-PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
-VERSION_FILE_PATH = get_temp_path('version.txt')
-LOG_FILE_PATH = get_temp_path('mainprogram.log')
+# Copy necessary files to C:\DevinsFolder from the EXE bundle
+def unpack_files():
+    try:
+        if hasattr(sys, '_MEIPASS'):
+            temp_dir = sys._MEIPASS
+            files_to_unpack = ['ico.png', 'bkgd.png', 'version.txt']
+            for file in files_to_unpack:
+                source_path = os.path.join(temp_dir, file)
+                dest_path = os.path.join(DEVINS_FOLDER, file)
+                shutil.copyfile(source_path, dest_path)
+
+            # Copy the subprograms folder
+            subprograms_src = os.path.join(temp_dir, 'subprograms')
+            subprograms_dest = os.path.join(DEVINS_FOLDER, 'subprograms')
+            shutil.copytree(subprograms_src, subprograms_dest)
+    except Exception as e:
+        logging.error(f"Error unpacking files: {e}")
+        messagebox.showerror("Error", f"Error unpacking files. {e}")
 
 # Set up logging
-os.makedirs('C:\\DevinsFolder', exist_ok=True)
-logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+def setup_logging():
+    os.makedirs(DEVINS_FOLDER, exist_ok=True)
+    logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Read the version number
-if os.path.exists(VERSION_FILE_PATH):
-    with open(VERSION_FILE_PATH, 'r') as version_file:
-        CURRENT_VERSION = version_file.read().strip()
-else:
-    CURRENT_VERSION = "BETA"
+# Copy version file from temp to DevinsFolder
+def setup_version_file():
+    try:
+        if hasattr(sys, '_MEIPASS'):
+            temp_version_path = os.path.join(sys._MEIPASS, 'version.txt')
+        else:
+            temp_version_path = os.path.join(os.getcwd(), 'version.txt')
 
-logging.info(f"Starting Devin's Program - Version {CURRENT_VERSION}")
+        if os.path.exists(temp_version_path):
+            shutil.copy(temp_version_path, VERSION_FILE_PATH)
+        else:
+            logging.warning(f"version.txt not found in {temp_version_path}")
+    except Exception as e:
+        logging.error(f"Error copying version.txt: {e}")
+        messagebox.showerror("Error", f"Error copying version.txt: {e}")
+
+# Function to read version number
+def read_version():
+    try:
+        if os.path.exists(VERSION_FILE_PATH):
+            with open(VERSION_FILE_PATH, 'r') as version_file:
+                return version_file.read().strip()
+        else:
+            logging.error(f"version.txt not found in {VERSION_FILE_PATH}")
+            return "BETA"
+    except Exception as e:
+        logging.error(f"Error reading version file: {e}")
+        return "BETA"
 
 # Function to open a subprogram
 def open_program(program_name):
     try:
-        # Now assume the subprogram has its own folder
-        program_folder = os.path.join(PROGRAMS_PATH, program_name)
-        program_path = os.path.join(program_folder, f'{program_name}.exe')  # Updated to reflect the EXE within a folder
-        
+        program_path = os.path.join(PROGRAMS_PATH, program_name)
         if os.path.exists(program_path):
             subprocess.Popen([program_path], shell=True)
             logging.info(f"Opened program: {program_path}")
@@ -55,7 +91,6 @@ def open_program(program_name):
             messagebox.showerror("Error", f"Program not found: {program_name}")
     except Exception as e:
         logging.error(f"Error opening program: {e}")
-
 
 # Function to open AnyDesk
 def open_anydesk():
@@ -195,5 +230,15 @@ def program_selection():
 
     root.mainloop()
 
+# Set up the program
+setup_logging()
+clean_devins_folder()  # Ensure clean startup
+unpack_files()  # Unpack necessary files
+setup_version_file()  # Copy version.txt to a writable location
+
+# Read the version number
+CURRENT_VERSION = read_version()
+
+# Start the program
 if __name__ == "__main__":
     program_selection()

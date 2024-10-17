@@ -25,6 +25,7 @@ def clean_devins_folder():
     if os.path.exists(folder_path):
         try:
             shutil.rmtree(folder_path)
+            logging.info(f"Deleted folder: {folder_path}")
         except PermissionError as e:
             logging.error(f"Permission denied when trying to delete {folder_path}: {e}")
             messagebox.showerror("Error", f"Permission denied when trying to delete {folder_path}. Please check folder permissions.")
@@ -40,11 +41,16 @@ def unpack_files():
                 source_path = os.path.join(temp_dir, file)
                 dest_path = get_devins_path(file)
                 shutil.copyfile(source_path, dest_path)
+                logging.info(f"Copied {source_path} to {dest_path}")
             
             # Unpack the subprograms folder
             subprograms_src = os.path.join(temp_dir, 'subprograms')
             subprograms_dest = get_devins_path('subprograms')
-            shutil.copytree(subprograms_src, subprograms_dest)
+            if os.path.exists(subprograms_src):
+                shutil.copytree(subprograms_src, subprograms_dest)
+                logging.info(f"Copied subprograms from {subprograms_src} to {subprograms_dest}")
+            else:
+                logging.error(f"Subprograms folder not found: {subprograms_src}")
     except Exception as e:
         logging.error(f"Error unpacking files: {e}")
         messagebox.showerror("Error", f"Error unpacking files. {e}")
@@ -54,6 +60,7 @@ try:
     clean_devins_folder()
     unpack_files()  # Unpack necessary files to DevinsFolder
     logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.info("Logging started.")
 except PermissionError as e:
     logging.error(f"Permission denied when creating log file or folder: {e}")
     messagebox.showerror("Error", f"Permission denied when trying to create log file. Please check folder permissions.")

@@ -43,7 +43,10 @@ logging.info(f"Starting Devin's Program - Version {CURRENT_VERSION}")
 # Function to open a subprogram
 def open_program(program_name):
     try:
-        program_path = os.path.join(PROGRAMS_PATH, program_name)
+        # Now assume the subprogram has its own folder
+        program_folder = os.path.join(PROGRAMS_PATH, program_name)
+        program_path = os.path.join(program_folder, f'{program_name}.exe')  # Updated to reflect the EXE within a folder
+        
         if os.path.exists(program_path):
             subprocess.Popen([program_path], shell=True)
             logging.info(f"Opened program: {program_path}")
@@ -52,6 +55,7 @@ def open_program(program_name):
             messagebox.showerror("Error", f"Program not found: {program_name}")
     except Exception as e:
         logging.error(f"Error opening program: {e}")
+
 
 # Function to open AnyDesk
 def open_anydesk():

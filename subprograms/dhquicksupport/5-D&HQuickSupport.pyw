@@ -7,7 +7,7 @@ import logging
 # Function to get the resource file from the temp directory
 def get_resource_path(filename):
     temp_dir = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.getcwd()
-    resources_folder = os.path.join(temp_dir, 'subprograms', '5-D&HQuickSupport', 'Resources')
+    resources_folder = os.path.join(temp_dir, 'subprograms', 'dhquicksupport', 'Resources')
     return os.path.join(resources_folder, filename)
 
 # Set up logging

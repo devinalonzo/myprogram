@@ -6,7 +6,6 @@ import subprocess
 import logging
 import sys
 import shutil
-import time
 
 # Function to get the path from the temporary folder (_MEIPASS)
 def get_temp_path(filename):
@@ -22,45 +21,27 @@ PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
 VERSION_FILE_PATH = get_temp_path('version.txt')
 LOG_FILE_PATH = 'C:\\DevinsFolder\\mainprogram.log'
 
-# Delay to ensure files are unpacked and available
-time.sleep(2)  # Wait for 2 seconds to ensure unpacking process is completed
-
-# Ensure DevinsFolder exists and clean it up on startup
-def clean_devins_folder():
-    devins_folder = 'C:\\DevinsFolder'
-    if os.path.exists(devins_folder):
-        shutil.rmtree(devins_folder)
-    os.makedirs(devins_folder, exist_ok=True)
-
-# Unpack files from the temporary directory (sys._MEIPASS) to DevinsFolder
+# Unpack files from the temporary directory (sys._MEIPASS)
 def unpack_files():
     try:
-        temp_dir = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.getcwd()
-        files_to_unpack = ['ico.png', 'bkgd.png', 'version.txt']
-        for file in files_to_unpack:
-            source_path = os.path.join(temp_dir, file)
-            dest_path = os.path.join('C:\\DevinsFolder', file)
-            shutil.copyfile(source_path, dest_path)
-        
-        # Copy the subprograms folder
-        subprograms_src = os.path.join(temp_dir, 'subprograms')
-        subprograms_dest = os.path.join('C:\\DevinsFolder', 'subprograms')
-        if os.path.exists(subprograms_src):
-            shutil.copytree(subprograms_src, subprograms_dest)
+        if hasattr(sys, '_MEIPASS'):
+            # Files are already extracted to the temp directory, no need to manually unpack
+            temp_dir = sys._MEIPASS
+            logging.info(f"Files already available in temporary directory: {temp_dir}")
     except Exception as e:
-        logging.error(f"Error unpacking files: {e}")
-        messagebox.showerror("Error", f"Error unpacking files. {e}")
+        logging.error(f"Error accessing files in temp directory: {e}")
+        messagebox.showerror("Error", f"Error accessing files in temp directory. {e}")
 
 # Set up logging
 def setup_logging():
     os.makedirs('C:\\DevinsFolder', exist_ok=True)
     logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Copy version file from temp to DevinsFolder
+# Copy version file from temp to a writable directory (optional)
 def setup_version_file():
     try:
         temp_version_path = get_temp_path('version.txt')
-        shutil.copy(temp_version_path, VERSION_FILE_PATH)
+        shutil.copy(temp_version_path, 'C:\\DevinsFolder\\version.txt')
     except Exception as e:
         logging.error(f"Error copying version.txt: {e}")
         messagebox.showerror("Error", f"Error copying version.txt: {e}")
@@ -77,6 +58,8 @@ def read_version():
     except Exception as e:
         logging.error(f"Error reading version file: {e}")
         return "BETA"
+
+logging.info(f"Starting Devin's Program")
 
 # Function to open a subprogram
 def open_program(program_name):
@@ -230,9 +213,8 @@ def program_selection():
     root.mainloop()
 
 # Set up the program
-clean_devins_folder()  # Ensure clean startup
 unpack_files()  # Unpack necessary files
-setup_logging()  # Set up logging after cleanup and file unpacking
+setup_logging()  # Set up logging after file unpacking
 setup_version_file()  # Copy version.txt to a writable location
 
 # Read the version number

@@ -21,9 +21,10 @@ PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
 VERSION_FILE_PATH = get_temp_path('version.txt')
 LOG_FILE_PATH = get_temp_path('mainprogram.log')
 
-# Unpacking files to the temp folder (restoring previous behavior)
+# Unpacking files to the temp folder
 def unpack_files():
     try:
+        logging.info("Unpacking files...")
         if hasattr(sys, '_MEIPASS'):
             temp_dir = sys._MEIPASS
             files_to_unpack = ['ico.png', 'bkgd.png', 'version.txt']
@@ -36,7 +37,7 @@ def unpack_files():
             subprograms_src = os.path.join(temp_dir, 'subprograms')
             subprograms_dest = get_temp_path('subprograms')
             shutil.copytree(subprograms_src, subprograms_dest)
-            logging.info("Files unpacked successfully to the temp folder.")
+        logging.info("Files unpacked successfully.")
     except Exception as e:
         logging.error(f"Error unpacking files: {e}")
         raise e
@@ -44,6 +45,7 @@ def unpack_files():
 # Set up logging
 try:
     logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.info("Starting program and unpacking files.")
     unpack_files()  # Unpack necessary files to the temp folder
 except Exception as e:
     logging.error(f"Logging error: {e}")
@@ -56,6 +58,7 @@ try:
     if os.path.exists(VERSION_FILE_PATH):
         with open(VERSION_FILE_PATH, 'r') as version_file:
             CURRENT_VERSION = version_file.read().strip()
+    logging.info(f"Running version: {CURRENT_VERSION}")
 except PermissionError as e:
     logging.error(f"Permission denied when reading version file: {e}")
     messagebox.showerror("Error", f"Permission denied when reading version file. Defaulting to BETA.")
@@ -116,6 +119,7 @@ def check_for_update():
 
 # Program selection UI
 def program_selection():
+    logging.info("Starting GUI")
     root = tk.Tk()
     root.title("Devin's Program")
 
@@ -214,7 +218,10 @@ def program_selection():
     version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
     version_label.place(x=start_x + 3 * button_gap_x, y=520)
 
+    logging.info("GUI loaded successfully.")
     root.mainloop()
 
 if __name__ == "__main__":
+    logging.info("Program started.")
     program_selection()
+    logging.info("Program exited.")

@@ -1,13 +1,13 @@
 import os
+import sys
+import shutil
 import tkinter as tk
 from tkinter import Button, messagebox
 from PIL import Image, ImageTk
 import subprocess
 import logging
-import sys
-import shutil
 
-# Function to get the path from the temporary folder (_MEIPASS)
+# Function to get the temporary folder path where the EXE is running
 def get_temp_path(filename):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, filename)
@@ -19,47 +19,51 @@ ICON_PATH = get_temp_path('ico.png')
 BACKGROUND_PATH = get_temp_path('bkgd.png')
 PROGRAMS_PATH = get_temp_path('subprograms')  # Directory with subprogram EXEs
 VERSION_FILE_PATH = get_temp_path('version.txt')
-LOG_FILE_PATH = 'C:\\DevinsFolder\\mainprogram.log'
+LOG_FILE_PATH = get_temp_path('mainprogram.log')
 
-# Unpack files from the temporary directory (sys._MEIPASS)
+# Unpacking files to the temp folder (restoring previous behavior)
 def unpack_files():
     try:
         if hasattr(sys, '_MEIPASS'):
-            # Files are already extracted to the temp directory, no need to manually unpack
             temp_dir = sys._MEIPASS
-            logging.info(f"Files already available in temporary directory: {temp_dir}")
+            files_to_unpack = ['ico.png', 'bkgd.png', 'version.txt']
+            for file in files_to_unpack:
+                source_path = os.path.join(temp_dir, file)
+                dest_path = get_temp_path(file)
+                shutil.copyfile(source_path, dest_path)
+
+            # Unpack the subprograms folder
+            subprograms_src = os.path.join(temp_dir, 'subprograms')
+            subprograms_dest = get_temp_path('subprograms')
+            shutil.copytree(subprograms_src, subprograms_dest)
+            logging.info("Files unpacked successfully to the temp folder.")
     except Exception as e:
-        logging.error(f"Error accessing files in temp directory: {e}")
-        messagebox.showerror("Error", f"Error accessing files in temp directory. {e}")
+        logging.error(f"Error unpacking files: {e}")
+        raise e
 
 # Set up logging
-def setup_logging():
-    os.makedirs('C:\\DevinsFolder', exist_ok=True)
+try:
     logging.basicConfig(filename=LOG_FILE_PATH, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    unpack_files()  # Unpack necessary files to the temp folder
+except Exception as e:
+    logging.error(f"Logging error: {e}")
+    sys.exit(1)  # Exit if logging can't be set up
 
-# Copy version file from temp to a writable directory (optional)
-def setup_version_file():
-    try:
-        temp_version_path = get_temp_path('version.txt')
-        shutil.copy(temp_version_path, 'C:\\DevinsFolder\\version.txt')
-    except Exception as e:
-        logging.error(f"Error copying version.txt: {e}")
-        messagebox.showerror("Error", f"Error copying version.txt: {e}")
+# Read the version number with error handling for permission issues
+CURRENT_VERSION = "BETA"  # Default version if unable to read
 
-# Function to read version number
-def read_version():
-    try:
-        if os.path.exists(VERSION_FILE_PATH):
-            with open(VERSION_FILE_PATH, 'r') as version_file:
-                return version_file.read().strip()
-        else:
-            logging.error(f"version.txt not found in {VERSION_FILE_PATH}")
-            return "BETA"
-    except Exception as e:
-        logging.error(f"Error reading version file: {e}")
-        return "BETA"
+try:
+    if os.path.exists(VERSION_FILE_PATH):
+        with open(VERSION_FILE_PATH, 'r') as version_file:
+            CURRENT_VERSION = version_file.read().strip()
+except PermissionError as e:
+    logging.error(f"Permission denied when reading version file: {e}")
+    messagebox.showerror("Error", f"Permission denied when reading version file. Defaulting to BETA.")
+except FileNotFoundError:
+    logging.error(f"Version file not found: {VERSION_FILE_PATH}")
+    messagebox.showinfo("Info", f"Version file not found. Defaulting to BETA.")
 
-logging.info(f"Starting Devin's Program")
+logging.info(f"Starting Devin's Program - Version {CURRENT_VERSION}")
 
 # Function to open a subprogram
 def open_program(program_name):
@@ -212,14 +216,5 @@ def program_selection():
 
     root.mainloop()
 
-# Set up the program
-unpack_files()  # Unpack necessary files
-setup_logging()  # Set up logging after file unpacking
-setup_version_file()  # Copy version.txt to a writable location
-
-# Read the version number
-CURRENT_VERSION = read_version()
-
-# Start the program
 if __name__ == "__main__":
     program_selection()

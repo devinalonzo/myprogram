@@ -20,8 +20,8 @@ def resource_path(relative_path):
 
 # Set the correct paths for programs and resources
 PROGRAMS_PATH = resource_path('subprograms')
-BACKGROUND_PATH = resource_path('bkgd.png')
-ICON_PATH = resource_path('ico.png')  # Use the .png icon
+BACKGROUND_PATH = resource_path('resources/bkgd.png')
+ICON_PATH = resource_path('resources/ico.png')
 
 # Fetch the build version from the passed argument or default to BETA
 CURRENT_VERSION = "BETA"
@@ -95,8 +95,11 @@ def program_selection():
     root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")  # Fill the screen but not in full-screen mode
 
     # Set the window icon using the .png file
-    icon_image = ImageTk.PhotoImage(file=ICON_PATH)
-    root.iconphoto(True, icon_image)
+    try:
+        icon_image = ImageTk.PhotoImage(file=ICON_PATH)
+        root.iconphoto(True, icon_image)
+    except Exception as e:
+        print(f"Failed to load icon: {e}")
 
     # Group programs by their category prefix
     pump_programs = []
@@ -125,12 +128,15 @@ def program_selection():
     screen_height = root.winfo_screenheight()
 
     # Load and set background image
-    background_image = Image.open(BACKGROUND_PATH)
-    background_image = background_image.resize((screen_width, screen_height), Image.LANCZOS)
-    background_photo = ImageTk.PhotoImage(background_image)
-    background_label = tk.Label(root, image=background_photo)
-    background_label.place(relwidth=1, relheight=1)
-
+    try:
+        background_image = Image.open(BACKGROUND_PATH)
+        background_image = background_image.resize((screen_width, screen_height), Image.LANCZOS)
+        background_photo = ImageTk.PhotoImage(background_image)
+        background_label = tk.Label(root, image=background_photo)
+        background_label.place(relwidth=1, relheight=1)
+    except FileNotFoundError:
+        messagebox.showerror("Error", "Background image not found. Please ensure the file exists in the resources folder.")
+    
     # Button styling
     button_bg = "#4e5d6c"
     button_fg = "#ffffff"

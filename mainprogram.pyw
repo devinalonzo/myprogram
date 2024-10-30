@@ -20,8 +20,8 @@ def resource_path(relative_path):
 
 # Set the correct paths for programs and resources
 PROGRAMS_PATH = resource_path('subprograms')
-BACKGROUND_PATH = resource_path('resources/bkgd.png')
-ICON_PATH = resource_path('resources/ico.png')
+BACKGROUND_PATH = resource_path('bkgd.png')
+ICON_PATH = resource_path('ico.png')
 
 # Fetch the build version from the passed argument or default to BETA
 CURRENT_VERSION = "BETA"
@@ -81,7 +81,7 @@ def open_anydesk():
 # Open a selected program from the EXE folder
 def open_program(program_name):
     exe_name = os.path.splitext(program_name)[0] + ".exe"
-    program_path = resource_path(os.path.join('subprograms', exe_name))
+    program_path = resource_path(exe_name)
     
     if os.path.exists(program_path):
         subprocess.Popen([program_path], shell=True)
@@ -135,7 +135,7 @@ def program_selection():
         background_label = tk.Label(root, image=background_photo)
         background_label.place(relwidth=1, relheight=1)
     except FileNotFoundError:
-        messagebox.showerror("Error", "Background image not found. Please ensure the file exists in the resources folder.")
+        messagebox.showerror("Error", "Background image not found. Please ensure the file exists.")
     
     # Button styling
     button_bg = "#4e5d6c"

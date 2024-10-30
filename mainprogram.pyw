@@ -19,7 +19,6 @@ def resource_path(relative_path):
     return os.path.join(os.path.abspath("."), relative_path)
 
 # Set the correct paths for programs and resources
-PROGRAMS_PATH = resource_path('subprograms')
 BACKGROUND_PATH = resource_path('bkgd.png')
 ICON_PATH = resource_path('ico.png')
 
@@ -86,7 +85,8 @@ def open_program(program_name):
     if os.path.exists(program_path):
         subprocess.Popen([program_path], shell=True)
     else:
-        messagebox.showinfo("Error", f"EXE not found:\n{program_path}")
+        messagebox.showinfo("Error", f"EXE not found:
+{program_path}")
 
 # Program selection UI
 def program_selection():
@@ -109,8 +109,8 @@ def program_selection():
     help_resources = []
 
     # List programs from the local directory or EXE-bundled folder
-    if os.path.exists(PROGRAMS_PATH):
-        programs = os.listdir(PROGRAMS_PATH)
+    try:
+        programs = [f for f in os.listdir(sys._MEIPASS) if f.endswith('.exe') and f != 'mainprogram.exe']
         for program_name in programs:
             if program_name.startswith('pu-'):
                 pump_programs.append(program_name)
@@ -122,6 +122,8 @@ def program_selection():
                 passport_programs.append(program_name)
             elif program_name.startswith('h-'):
                 help_resources.append(program_name)
+    except Exception as e:
+        print(f"Failed to list programs: {e}")
 
     # Set the screen size
     screen_width = root.winfo_screenwidth()

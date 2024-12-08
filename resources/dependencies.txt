@@ -1,0 +1,17 @@
+import os
+import webbrowser
+import ctypes
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog, Tk
+import subprocess
+import time
+import sys
+import serial
+import serial.tools.list_ports
+import wmi
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QLabel, QPushButton, QComboBox, QVBoxLayout,
+    QHBoxLayout, QMessageBox, QDialog, QLineEdit, QGridLayout, QGroupBox,
+    QRadioButton, QButtonGroup
+)
+from PyQt5.QtCore import Qt

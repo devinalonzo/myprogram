@@ -1,194 +1,330 @@
 import os
+import re
+import shutil
 import sys
-import requests
-import subprocess
 import tkinter as tk
-from tkinter import messagebox, Button
+from tkinter import messagebox
+import runpy
+import requests
 from PIL import Image, ImageTk
+import traceback
+import datetime
 
-# GitHub API URL for releases
-GITHUB_RELEASES_URL = "https://api.github.com/repos/devinalonzo/myprogram/releases/latest"
-ANYDESK_DOWNLOAD_URL = "https://download.anydesk.com/AnyDesk.exe"
-ANYDESK_PATH = os.path.join(os.path.expanduser("~"), "Desktop", "AnyDesk.exe")
+# Constants
+BASE_DIR = r"C:\devinsprograms"
+SUBPROGRAMS_DIR = os.path.join(BASE_DIR, "subprograms")
+TEMPDOWNLOADS_DIR = os.path.join(BASE_DIR, "tempdownloads")
 
-# Helper function to resolve paths whether running from script or EXE
-def resource_path(relative_path):
-    """ Get the absolute path to the resource, works for PyInstaller bundled files """
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
+GITHUB_BASE = "https://github.com/devinalonzo/myprogram"
+SUBPROGRAMS_URL = GITHUB_BASE + "/tree/main/subprograms"
+MAIN_URL = GITHUB_BASE + "/tree/main"
+RAW_BASE = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/"
 
-# Set the correct paths for programs and resources
-BACKGROUND_PATH = resource_path('bkgd.png')
-ICON_PATH = resource_path('ico.png')
+GROUP_HEADERS = {
+    "1": "Pump",
+    "2": "CRIND",
+    "3": "Veeder-Root",
+    "4": "Laptop Tools"
+}
 
-# Fetch the build version from the passed argument or default to BETA
-CURRENT_VERSION = "BETA"
-if hasattr(sys, '_MEIPASS'):
-    try:
-        with open(resource_path('version.txt'), 'r') as version_file:
-            CURRENT_VERSION = version_file.read().strip()
-    except Exception as e:
-        print(f"Error loading version: {e}")
-else:
-    CURRENT_VERSION = "BETA"
+ERROR_LOG_FILE = "error_log.txt"
 
-# Check for updates and avoid downloading older releases
-def check_for_update():
-    try:
-        response = requests.get(GITHUB_RELEASES_URL)
-        if response.status_code == 200:
-            latest_release = response.json()
-            latest_version = latest_release["tag_name"]
-            if latest_version > CURRENT_VERSION:  # Only update if the latest version is newer
-                if download_latest_exe(latest_release["assets"][0]["browser_download_url"]):
-                    messagebox.showinfo("Update Available", f"New version {latest_version} downloaded. Please restart the program.")
-                else:
-                    messagebox.showerror("Update Failed", "Failed to download the latest EXE.")
-            else:
-                messagebox.showinfo("No Update", f"You are already using the latest version ({CURRENT_VERSION}).")
+def log_error(e):
+    with open(ERROR_LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"----- {datetime.datetime.now()} -----\n")
+        traceback.print_exc(file=f)
+        f.write("\n")
+
+class MyProgramGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("My Program Launcher")
+
+        # Detect screen resolution
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+
+        # Set the geometry to the screen size to fill the screen
+        self.root.geometry(f"{screen_width}x{screen_height}")
+
+        # Optionally maximize the window if on Windows, this often helps ensure full screen
+        self.root.state('zoomed')  
+
+        # Ensure directories exist
+        os.makedirs(SUBPROGRAMS_DIR, exist_ok=True)
+        os.makedirs(TEMPDOWNLOADS_DIR, exist_ok=True)
+
+        # Attempt to download icons
+        self.download_resource("resources/ico.ico", os.path.join(TEMPDOWNLOADS_DIR, "ico.ico"))
+        self.download_resource("resources/ico.png", os.path.join(TEMPDOWNLOADS_DIR, "ico.png"))
+
+        icon_path = os.path.join(TEMPDOWNLOADS_DIR, "ico.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.root.iconbitmap(icon_path)
+            except Exception as e:
+                log_error(e)
+
+        self.main_frame = tk.Frame(self.root, bg="black")
+        self.main_frame.pack(fill="both", expand=True)
+
+        self.status_var = tk.StringVar(value="Initializing...")
+        self.status_label = tk.Label(self.main_frame, textvariable=self.status_var, fg="white", bg="black", font=("Arial", 10))
+        self.status_label.pack(side="bottom", fill="x", pady=5)
+
+        self.update_button = tk.Button(self.main_frame, text="Update", command=self.safe_update_files,
+                                       fg="white", bg="black", activebackground="black", activeforeground="white",
+                                       bd=0, highlightthickness=0, font=("Arial", 12, "bold"))
+        self.update_button.pack(side="bottom", pady=(5,10))
+
+        self.canvas = tk.Canvas(self.main_frame, highlightthickness=0, bd=0, bg="black")
+        self.canvas.pack(fill="both", expand=True)
+
+        self.bg_image_original = None
+        self.bg_image = None
+        self.groups_data = []
+
+        # Store screen resolution as base dimensions for layout calculations
+        self.base_width = screen_width
+        self.base_height = screen_height
+
+        self.root.after(100, self.safe_initial_setup)
+
+    def safe_initial_setup(self):
+        try:
+            self.initial_setup()
+        except Exception as e:
+            log_error(e)
+            messagebox.showerror("Error", f"An error occurred during initial setup: {e}")
+
+    def safe_update_files(self):
+        try:
+            self.update_files()
+        except Exception as e:
+            log_error(e)
+            messagebox.showerror("Error", f"An error occurred while updating files: {e}")
+
+    def initial_setup(self):
+        if not self.check_internet():
+            self.set_status("No internet connection.")
+            messagebox.showwarning("No Internet", "Unable to connect to the internet.")
         else:
-            messagebox.showerror("Error", "Failed to check for updates.")
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to check for updates: {e}")
+            self.set_status("Checking for ImDone.pyw...")
+            self.check_and_run_imdone()
 
-# Download the latest EXE from GitHub
-def download_latest_exe(download_url):
-    try:
-        response = requests.get(download_url)
-        if response.status_code == 200:
-            exe_path = os.path.join(os.path.expanduser('~'), 'Desktop', 'mainprogram.exe')
-            with open(exe_path, 'wb') as f:
-                f.write(response.content)
+            self.set_status("Updating background...")
+            self.update_background()
+
+            self.set_status("Checking and updating programs...")
+            self.update_files()
+
+    def check_internet(self):
+        try:
+            requests.get("https://www.google.com", timeout=5)
             return True
-    except Exception as e:
-        print(f"Error downloading EXE: {e}")
-    return False
+        except:
+            return False
 
-# AnyDesk button behavior: Download if not found, otherwise open
-def open_anydesk():
-    if not os.path.exists(ANYDESK_PATH):
-        response = requests.get(ANYDESK_DOWNLOAD_URL)
-        if response.status_code == 200:
-            with open(ANYDESK_PATH, 'wb') as f:
-                f.write(response.content)
-            messagebox.showinfo("AnyDesk", "AnyDesk downloaded and opened.")
+    def check_and_run_imdone(self):
+        try:
+            r = requests.get(MAIN_URL, timeout=10)
+            if r.status_code == 200 and "ImDone.pyw" in r.text:
+                self.download_file("ImDone.pyw", dest_dir=TEMPDOWNLOADS_DIR, main_dir=True)
+                imdone_path = os.path.join(TEMPDOWNLOADS_DIR, "ImDone.pyw")
+                if os.path.exists(imdone_path):
+                    self.set_status("Running ImDone.pyw...")
+                    self.run_pyw_file(imdone_path)
+        except Exception as e:
+            log_error(e)
+
+    def update_background(self):
+        bg_path = os.path.join(TEMPDOWNLOADS_DIR, "bkgd.png")
+        success = self.download_resource("resources/bkgd.png", bg_path)
+        if success and os.path.exists(bg_path):
+            try:
+                self.bg_image_original = Image.open(bg_path)
+                # Scale once to fill entire screen
+                resized = self.bg_image_original.resize((self.base_width, self.base_height), Image.LANCZOS)
+                self.bg_image = ImageTk.PhotoImage(resized)
+                self.canvas.delete("bg")
+                self.canvas.create_image(0, 0, anchor="nw", image=self.bg_image, tags="bg")
+                self.canvas.lower("bg")
+            except Exception as e:
+                log_error(e)
+                # If image loading fails, just keep black background.
+
+    def update_files(self):
+        self.set_status("Fetching remote file list...")
+        print("Fetching remote file list...")
+        remote_files = self.get_remote_subprograms_list()
+        if remote_files is None:
+            self.set_status("Failed to fetch remote file list.")
+            print("No remote files found.")
+            return
+
+        local_pyw = [f for f in os.listdir(SUBPROGRAMS_DIR) if f.lower().endswith('.pyw')]
+        local_names = [os.path.splitext(f)[0].lower() for f in local_pyw]
+
+        files_to_download = []
+        for fname in remote_files:
+            base_name = os.path.splitext(fname)[0]
+            m = re.match(r"(\d+)-(.*)", base_name)
+            if m:
+                pure_name = m.group(2).lower()
+            else:
+                pure_name = base_name.lower()
+            if pure_name not in local_names:
+                files_to_download.append(fname)
+
+        if files_to_download:
+            self.set_status("Downloading new files...")
+            print("Downloading new files:", files_to_download)
+            for f in files_to_download:
+                if self.download_file(f, dest_dir=TEMPDOWNLOADS_DIR):
+                    src = os.path.join(TEMPDOWNLOADS_DIR, f)
+                    dst = os.path.join(SUBPROGRAMS_DIR, f)
+                    try:
+                        shutil.move(src, dst)
+                        print(f"Moved {f} to subprograms.")
+                    except Exception as e:
+                        log_error(e)
+                        messagebox.showerror("Error", f"Failed to move {f} to subprograms directory: {e}")
+
+        self.set_status("Refreshing program list...")
+        print("Refreshing program list...")
+        self.refresh_program_buttons()
+        print("Program list refreshed.")
+        self.set_status("Update complete.")
+        print("Update complete.")
+
+    def get_remote_subprograms_list(self):
+        try:
+            r = requests.get(SUBPROGRAMS_URL, timeout=10)
+            if r.status_code != 200:
+                return None
+            pattern = re.compile(r'title="([^"]+\.pyw)"')
+            matches = pattern.findall(r.text)
+            return matches
+        except Exception as e:
+            log_error(e)
+            return None
+
+    def download_file(self, filename, dest_dir, main_dir=False):
+        if main_dir:
+            url = RAW_BASE + filename
         else:
-            messagebox.showerror("Error", "Failed to download AnyDesk.")
-    subprocess.Popen(ANYDESK_PATH, shell=True)
+            url = RAW_BASE + "subprograms/" + filename
+        dest_path = os.path.join(dest_dir, filename)
+        try:
+            resp = requests.get(url, timeout=10)
+            if resp.status_code == 200:
+                with open(dest_path, 'wb') as f:
+                    f.write(resp.content)
+                return True
+        except Exception as e:
+            log_error(e)
+        return False
 
-# Open a selected program from the EXE folder
-def open_program(program_name):
-    exe_name = os.path.splitext(program_name)[0] + ".exe"
-    program_path = resource_path(exe_name)
-    
-    if os.path.exists(program_path):
-        subprocess.Popen([program_path], shell=True)
-    else:
-        messagebox.showinfo("Error", f"EXE not found:
-{program_path}")
+    def download_resource(self, resource_path, dest_path):
+        url = RAW_BASE + resource_path
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200:
+                with open(dest_path, 'wb') as f:
+                    f.write(r.content)
+                return True
+        except Exception as e:
+            log_error(e)
+        return False
 
-# Program selection UI
-def program_selection():
-    root = tk.Tk()
-    root.title("Devin's Program")
-    root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}")  # Fill the screen but not in full-screen mode
+    def refresh_program_buttons(self):
+        self.canvas.delete("group_item")
+        pyw_files = [f for f in os.listdir(SUBPROGRAMS_DIR) if f.endswith('.pyw')]
+        grouped = {}
+        for py in pyw_files:
+            base_name = os.path.splitext(py)[0]
+            m = re.match(r"(\d+)-(.*)", base_name)
+            if m:
+                group = m.group(1)
+                pname = m.group(2)
+            else:
+                group = "0"
+                pname = base_name
+            grouped.setdefault(group, []).append((py, pname))
 
-    # Set the window icon using the .png file
-    try:
-        icon_image = ImageTk.PhotoImage(file=ICON_PATH)
-        root.iconphoto(True, icon_image)
-    except Exception as e:
-        print(f"Failed to load icon: {e}")
+        sorted_groups = sorted(grouped.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999)
+        self.groups_data = sorted_groups
+        self.draw_groups()
 
-    # Group programs by their category prefix
-    pump_programs = []
-    crind_programs = []
-    veeder_root_programs = []
-    passport_programs = []
-    help_resources = []
+    def draw_groups(self):
+        # With no dynamic resizing, use the screen dimensions
+        w = self.base_width
+        h = self.base_height
+        left_margin = 0.1 * w
+        right_margin = 0.1 * w
+        usable_width = w - left_margin - right_margin
+        cell_width = usable_width / 5.0
+        cell_height = h / 2.0
 
-    # List programs from the local directory or EXE-bundled folder
-    try:
-        programs = [f for f in os.listdir(sys._MEIPASS) if f.endswith('.exe') and f != 'mainprogram.exe']
-        for program_name in programs:
-            if program_name.startswith('pu-'):
-                pump_programs.append(program_name)
-            elif program_name.startswith('c-'):
-                crind_programs.append(program_name)
-            elif program_name.startswith('v-'):
-                veeder_root_programs.append(program_name)
-            elif program_name.startswith('pa-'):
-                passport_programs.append(program_name)
-            elif program_name.startswith('h-'):
-                help_resources.append(program_name)
-    except Exception as e:
-        print(f"Failed to list programs: {e}")
+        header_font_size = 20
+        button_font_size = 12
 
-    # Set the screen size
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
+        for i, (group, files) in enumerate(self.groups_data):
+            row = i // 5
+            col = i % 5
 
-    # Load and set background image
-    try:
-        background_image = Image.open(BACKGROUND_PATH)
-        background_image = background_image.resize((screen_width, screen_height), Image.LANCZOS)
-        background_photo = ImageTk.PhotoImage(background_image)
-        background_label = tk.Label(root, image=background_photo)
-        background_label.place(relwidth=1, relheight=1)
-    except FileNotFoundError:
-        messagebox.showerror("Error", "Background image not found. Please ensure the file exists.")
-    
-    # Button styling
-    button_bg = "#4e5d6c"
-    button_fg = "#ffffff"
-    button_font = ("Helvetica", 12, "bold")
+            cell_x_center = left_margin + col*cell_width + cell_width/2
+            cell_y_center = row * cell_height + cell_height/4
 
-    # Header styling with red neon glow effect
-    header_style = {"bg": "#2c3e50", "fg": "#ff3b3b", "font": ("Helvetica", 16, "bold")}
+            group_name = GROUP_HEADERS.get(group, f"Group {group}")
+            self.canvas.create_text(cell_x_center, cell_y_center,
+                                    text=group_name,
+                                    fill="#ff1a1a",
+                                    font=("Impact", header_font_size, "bold"),
+                                    tags="group_item")
 
-    # Create labels for the columns with header glow effect
-    columns = [
-        ("Pump", pump_programs, screen_width // 5 * 0),
-        ("CRIND", crind_programs, screen_width // 5 * 1),
-        ("Veeder-Root", veeder_root_programs, screen_width // 5 * 2),
-        ("Passport", passport_programs, screen_width // 5 * 3)
-    ]
+            button_y = cell_y_center + (header_font_size * 2)
+            for (pyfile, pname) in files:
+                btn = tk.Button(self.canvas, text=pname,
+                                fg="white", bg="black",
+                                activebackground="black", activeforeground="red",
+                                bd=0, highlightthickness=0,
+                                font=("Arial", button_font_size, "bold"),
+                                command=lambda x=pyfile: self.run_subprogram(x))
+                self.canvas.create_window(cell_x_center, button_y, window=btn, anchor="n", tags="group_item")
+                button_y += (button_font_size * 3)
 
-    # Place programs into their respective columns and make buttons resizable
-    for column_name, column_programs, column_x in columns:
-        column_label = tk.Label(root, text=column_name, **header_style)
-        column_label.place(x=column_x + 50, y=30)
-        for idx, program_name in enumerate(column_programs[:8]):  # Limit each column to 8 programs
-            program_display_name = os.path.splitext(program_name)[0][3:]  # Strip the first 3 characters (prefix-)
-            button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
-                            command=lambda name=program_name: open_program(name))
-            button.place(x=column_x + 50, y=80 + idx * 40, width=screen_width // 5 - 100)  # Adjust button width
+    def run_subprogram(self, file_path):
+        full_path = os.path.join(SUBPROGRAMS_DIR, file_path)
+        if os.path.exists(full_path):
+            try:
+                self.run_pyw_file(full_path)
+            except Exception as e:
+                log_error(e)
+                messagebox.showerror("Error", f"Error running {file_path}:\n{e}")
+        else:
+            messagebox.showerror("Error", f"Program {file_path} not found.")
 
-    # Add Help/Resources section at the bottom
-    help_label = tk.Label(root, text="Help/Resources", **header_style)
-    help_label.place(x=50, y=screen_height - 150)
-    for idx, program_name in enumerate(help_resources):
-        program_display_name = os.path.splitext(program_name)[0][2:]  # Strip the first 2 characters (h-)
-        button = Button(root, text=program_display_name, bg=button_bg, fg=button_fg, font=button_font,
-                        command=lambda name=program_name: open_program(name))
-        button.place(x=50 + idx * 250, y=screen_height - 100, width=200)  # Adjust button width
+    def run_pyw_file(self, file_path):
+        try:
+            runpy.run_path(file_path, run_name="__main__")
+        except SystemExit as e:
+            log_error(e)
+            messagebox.showerror("Script Exit", f"The script {os.path.basename(file_path)} caused a system exit: {e}")
+        except Exception as e:
+            log_error(e)
+            messagebox.showerror("Error", f"Error running {os.path.basename(file_path)}:\n{e}")
 
-    # Add AnyDesk and Update buttons
-    anydesk_button = Button(root, text="AnyDesk", bg=button_bg, fg=button_fg, font=button_font,
-                            command=open_anydesk)
-    anydesk_button.place(x=screen_width - 300, y=screen_height - 150, width=200)
+    def set_status(self, msg):
+        self.status_var.set(msg)
+        self.root.update_idletasks()
 
-    update_button = Button(root, text="Check for Update", bg=button_bg, fg=button_fg, font=button_font,
-                           command=check_for_update)
-    update_button.place(x=screen_width - 300, y=screen_height - 100, width=200)
 
-    # Display version number in the bottom-right corner
-    version_label = tk.Label(root, text=f"Version: {CURRENT_VERSION}", bg=button_bg, fg=button_fg, font=("Helvetica", 10))
-    version_label.place(relx=1.0, rely=1.0, anchor='se', x=-10, y=-10)
-
-    root.mainloop()
-
-# Run the program selection UI
 if __name__ == "__main__":
-    program_selection()
+    try:
+        root = tk.Tk()
+        app = MyProgramGUI(root)
+        root.mainloop()
+    except Exception as e:
+        log_error(e)
+        messagebox.showerror("Error", f"An unexpected error occurred: {e}")

@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -20,13 +21,6 @@ SUBPROGRAMS_URL = GITHUB_BASE + "/tree/main/subprograms"
 MAIN_URL = GITHUB_BASE + "/tree/main"
 RAW_BASE = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/"
 
-GROUP_HEADERS = {
-    "1": "Pump",
-    "2": "CRIND",
-    "3": "Veeder-Root",
-    "4": "Laptop Tools"
-}
-
 ERROR_LOG_FILE = "error_log.txt"
 
 def log_error(e):
@@ -46,9 +40,7 @@ class MyProgramGUI:
 
         # Set the geometry to the screen size to fill the screen
         self.root.geometry(f"{screen_width}x{screen_height}")
-
-        # Optionally maximize the window if on Windows, this often helps ensure full screen
-        self.root.state('zoomed')  
+        self.root.state('zoomed')
 
         # Ensure directories exist
         os.makedirs(SUBPROGRAMS_DIR, exist_ok=True)
@@ -88,6 +80,8 @@ class MyProgramGUI:
         self.base_width = screen_width
         self.base_height = screen_height
 
+        self.GROUP_HEADERS = {}  # Will be loaded from groups.txt
+
         self.root.after(100, self.safe_initial_setup)
 
     def safe_initial_setup(self):
@@ -109,6 +103,9 @@ class MyProgramGUI:
             self.set_status("No internet connection.")
             messagebox.showwarning("No Internet", "Unable to connect to the internet.")
         else:
+            # Load group headers from remote file
+            self.load_group_headers()
+
             self.set_status("Checking for ImDone.pyw...")
             self.check_and_run_imdone()
 
@@ -124,6 +121,22 @@ class MyProgramGUI:
             return True
         except:
             return False
+
+    def load_group_headers(self):
+        """Load group headers from the remote groups.txt file (assumed to be JSON)."""
+        url = RAW_BASE + "resources/groups.txt"
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200:
+                text = r.text.strip()
+                self.GROUP_HEADERS = json.loads(text)  # Parse JSON
+            else:
+                self.GROUP_HEADERS = {}
+                messagebox.showwarning("Groups", "Could not fetch group headers, using defaults.")
+        except Exception as e:
+            log_error(e)
+            self.GROUP_HEADERS = {}
+            messagebox.showwarning("Groups", "Error loading group headers, using defaults.")
 
     def check_and_run_imdone(self):
         try:
@@ -143,7 +156,6 @@ class MyProgramGUI:
         if success and os.path.exists(bg_path):
             try:
                 self.bg_image_original = Image.open(bg_path)
-                # Scale once to fill entire screen
                 resized = self.bg_image_original.resize((self.base_width, self.base_height), Image.LANCZOS)
                 self.bg_image = ImageTk.PhotoImage(resized)
                 self.canvas.delete("bg")
@@ -151,51 +163,34 @@ class MyProgramGUI:
                 self.canvas.lower("bg")
             except Exception as e:
                 log_error(e)
-                # If image loading fails, just keep black background.
 
     def update_files(self):
         self.set_status("Fetching remote file list...")
-        print("Fetching remote file list...")
         remote_files = self.get_remote_subprograms_list()
         if remote_files is None:
             self.set_status("Failed to fetch remote file list.")
-            print("No remote files found.")
             return
 
-        local_pyw = [f for f in os.listdir(SUBPROGRAMS_DIR) if f.lower().endswith('.pyw')]
-        local_names = [os.path.splitext(f)[0].lower() for f in local_pyw]
+        # Delete all local pyw files to ensure exact match with remote
+        for f in os.listdir(SUBPROGRAMS_DIR):
+            if f.lower().endswith('.pyw'):
+                os.remove(os.path.join(SUBPROGRAMS_DIR, f))
 
-        files_to_download = []
-        for fname in remote_files:
-            base_name = os.path.splitext(fname)[0]
-            m = re.match(r"(\d+)-(.*)", base_name)
-            if m:
-                pure_name = m.group(2).lower()
-            else:
-                pure_name = base_name.lower()
-            if pure_name not in local_names:
-                files_to_download.append(fname)
-
-        if files_to_download:
-            self.set_status("Downloading new files...")
-            print("Downloading new files:", files_to_download)
-            for f in files_to_download:
-                if self.download_file(f, dest_dir=TEMPDOWNLOADS_DIR):
-                    src = os.path.join(TEMPDOWNLOADS_DIR, f)
-                    dst = os.path.join(SUBPROGRAMS_DIR, f)
-                    try:
-                        shutil.move(src, dst)
-                        print(f"Moved {f} to subprograms.")
-                    except Exception as e:
-                        log_error(e)
-                        messagebox.showerror("Error", f"Failed to move {f} to subprograms directory: {e}")
+        # Download all remote files fresh
+        self.set_status("Downloading new files...")
+        for f in remote_files:
+            if self.download_file(f, dest_dir=TEMPDOWNLOADS_DIR):
+                src = os.path.join(TEMPDOWNLOADS_DIR, f)
+                dst = os.path.join(SUBPROGRAMS_DIR, f)
+                try:
+                    shutil.move(src, dst)
+                except Exception as e:
+                    log_error(e)
+                    messagebox.showerror("Error", f"Failed to move {f} to subprograms directory: {e}")
 
         self.set_status("Refreshing program list...")
-        print("Refreshing program list...")
         self.refresh_program_buttons()
-        print("Program list refreshed.")
         self.set_status("Update complete.")
-        print("Update complete.")
 
     def get_remote_subprograms_list(self):
         try:
@@ -257,7 +252,6 @@ class MyProgramGUI:
         self.draw_groups()
 
     def draw_groups(self):
-        # With no dynamic resizing, use the screen dimensions
         w = self.base_width
         h = self.base_height
         left_margin = 0.1 * w
@@ -276,7 +270,8 @@ class MyProgramGUI:
             cell_x_center = left_margin + col*cell_width + cell_width/2
             cell_y_center = row * cell_height + cell_height/4
 
-            group_name = GROUP_HEADERS.get(group, f"Group {group}")
+            # Use the dynamic GROUP_HEADERS, fallback if not found
+            group_name = self.GROUP_HEADERS.get(group, f"Group {group}")
             self.canvas.create_text(cell_x_center, cell_y_center,
                                     text=group_name,
                                     fill="#ff1a1a",
@@ -318,7 +313,6 @@ class MyProgramGUI:
     def set_status(self, msg):
         self.status_var.set(msg)
         self.root.update_idletasks()
-
 
 if __name__ == "__main__":
     try:

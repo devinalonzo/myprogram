@@ -1,18 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Tank Testing Help File</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Book Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            background-color: #444;
+            color: #fff;
+            width: 100%;
+            padding: 10px 0;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .pdf-container {
+            margin: 20px auto;
+            width: 80%;
+            height: 80vh;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        footer {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #555;
+            text-align: center;
+            padding: 10px;
+            width: 100%;
+        }
+        footer a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-
-<center><h1>Welcome to the help files</h1>
-<h2>There is no help file, figure it out 🤷‍<br>
-Just kidding, this is a work in progress, contact me with any issues.<br>
-Thanks!<br>
--Devin
-
-</h2>
-</center>
-
+    <header>
+        PDF Book Viewer
+    </header>
+    <div class="pdf-container">
+        <iframe 
+            src="https://github.com/devinalonzo/myprogram/blob/main/help/CSLD.pdf#zoom=100&view=FitH" 
+            title="PDF Viewer">
+        </iframe>
+    </div>
+    <footer>
+        This snippet was pulled from another guide that can be downloaded from 
+        <a href="https://interactive.gilbarco.com/apps/gold/document/6845" target="_blank">
+            GoldDocs
+        </a>.
+    </footer>
 </body>
 </html>

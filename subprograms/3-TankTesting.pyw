@@ -5,6 +5,8 @@ import telnetlib
 import threading
 import datetime
 import configparser
+import requests
+import webbrowser
 
 # Constants
 CONFIG_FOLDER = os.path.expanduser("~/Desktop/Tank Readings")
@@ -61,7 +63,7 @@ COMMANDS = {
 }
 
 COMMANDS_LIST = list(COMMANDS.items())
-ROWS, COLUMNS = 5, 2
+ROWS, COLUMNS = 4, 3
 BUTTONS_PER_PAGE = ROWS * COLUMNS
 
 class PaginatedButtons:
@@ -94,19 +96,34 @@ class PaginatedButtons:
         self.update_page()
 
     def update_page(self):
+        # Clear previous buttons
         for widget in self.buttons_frame.winfo_children():
             widget.destroy()
 
+        # Calculate the button placement
         start_index = self.current_page * BUTTONS_PER_PAGE
         end_index = start_index + BUTTONS_PER_PAGE
+
+        # Configure grid weights for centering
+        for col in range(COLUMNS):
+            self.buttons_frame.grid_columnconfigure(col, weight=1)
+        for row in range(ROWS):
+            self.buttons_frame.grid_rowconfigure(row, weight=1)
+
+        # Add buttons
         for i, (name, (command, wait_time)) in enumerate(self.commands[start_index:end_index]):
             button = tk.Button(
                 self.buttons_frame,
                 text=name,
                 command=lambda c=command, n=name, w=wait_time: self.execute_command_callback(c, n, w),
+                width=20,  # Specify a fixed width if desired
+                height=1   # Specify a fixed height if desired
             )
-            button.grid(row=i // COLUMNS, column=i % COLUMNS, padx=10, pady=10)
+            button.grid(
+                row=i // COLUMNS, column=i % COLUMNS, padx=10, pady=10, sticky="nsew"
+            )
 
+        # Update the navigation
         self.page_label.config(
             text=f"Page {self.current_page + 1} of {self.total_pages}"
         )
@@ -122,6 +139,7 @@ class PaginatedButtons:
         if self.current_page < self.total_pages - 1:
             self.current_page += 1
             self.update_page()
+
 
 def ensure_folder(path):
     if not os.path.exists(path):
@@ -147,24 +165,96 @@ def load_config():
         return config['Settings']['IP_Address'], config['Settings']['Port'], config['Settings']['Site_Name'], config['Settings']['Site_Number']
     return "", "", "", ""
 
+# def execute_command(ip, port, command, name, wait_time):
+    # def task():
+        # try:
+            # tn = telnetlib.Telnet(ip, int(port))
+            # tn.write(f"\x01{command}\r".encode("ascii"))
+            # response = tn.read_until(b"\x03", timeout=max(wait_time // 1000, 2)).decode("ascii")
+            # tn.close()
+
+            # formatted_response = []
+            # for line in response.splitlines():
+                # if line.strip() and len(line.split()) > 0:
+                    # try:
+                        # time_field = line.split()[0]
+                        # if len(time_field) == 12 and time_field.isdigit():
+                            # readable_time = datetime.datetime.strptime(time_field, "%y%m%d%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+                            # line = line.replace(time_field, readable_time, 1)
+                    # except Exception as e:
+                        # pass  # Leave line unmodified if parsing fails
+                # formatted_response.append(line)
+
+            # formatted_response_str = "\n".join(formatted_response)
+
+            # response_window = tk.Toplevel()
+            # response_window.title(f"Response for {name}")
+            # response_text = scrolledtext.ScrolledText(response_window, wrap=tk.WORD, width=80, height=20)
+            # response_text.insert(tk.END, formatted_response_str)
+            # response_text.pack(expand=True, fill=tk.BOTH)
+        # except Exception as e:
+            # messagebox.showerror("Error", str(e))
+
+    # threading.Thread(target=task).start()
+
+
+
+
+
+
 def execute_command(ip, port, command, name, wait_time):
+    """
+    Executes a command and updates the progress bar.
+    """
     def task():
         try:
+            # Update progress bar to indicate the start
+            progress_bar["value"] = 0
+            progress_bar["maximum"] = 1
+            
             tn = telnetlib.Telnet(ip, int(port))
             tn.write(f"\x01{command}\r".encode("ascii"))
             response = tn.read_until(b"\x03", timeout=max(wait_time // 1000, 2)).decode("ascii")
             tn.close()
 
+            # Process the response
+            formatted_response = []
+            for line in response.splitlines():
+                if line.strip() and len(line.split()) > 0:
+                    try:
+                        # Reformat time in response
+                        time_field = line.split()[0]
+                        if len(time_field) == 12 and time_field.isdigit():
+                            readable_time = datetime.datetime.strptime(time_field, "%y%m%d%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+                            line = line.replace(time_field, readable_time, 1)
+                    except Exception:
+                        pass
+                formatted_response.append(line)
+
+            formatted_response_str = "\n".join(formatted_response)
+
             # Display response in a new window
             response_window = tk.Toplevel()
             response_window.title(f"Response for {name}")
             response_text = scrolledtext.ScrolledText(response_window, wrap=tk.WORD, width=80, height=20)
-            response_text.insert(tk.END, response)
+            response_text.insert(tk.END, formatted_response_str)
             response_text.pack(expand=True, fill=tk.BOTH)
         except Exception as e:
             messagebox.showerror("Error", str(e))
+        finally:
+            # Mark the progress as complete
+            progress_bar["value"] = 1
 
     threading.Thread(target=task).start()
+
+
+
+
+
+
+
+
+
 
 def connect_and_log(ip, port, site_name, site_number, progress_bar):
     def task():
@@ -196,7 +286,7 @@ def connect_and_log(ip, port, site_name, site_number, progress_bar):
 
 # GUI Setup
 root = tk.Tk()
-root.title("Tanks Baby Tanks")
+root.title("Tank Logger")
 root.state('zoomed')  # Make the GUI full screen
 
 main_frame = tk.Frame(root)
@@ -206,15 +296,24 @@ header_frame = tk.Frame(main_frame)
 header_frame.pack(pady=20)
 
 
-# Function to check if the tank test can start
 def can_start_tank_test(ip, port):
+    """
+    Checks if the tank test can start and updates the progress bar.
+    """
     def task():
         try:
+            # Initialize progress bar
+            progress_bar["value"] = 0
+            progress_bar["maximum"] = 1
+            
             # Connect to the tank system
             tn = telnetlib.Telnet(ip, int(port))
+            progress_bar["value"] += 0.5  # Increment progress after connection
+            
             tn.write(f"\x01IA5400\r".encode("ascii"))
             response = tn.read_until(b"\x03", timeout=30).decode("ascii")
             tn.close()
+            progress_bar["value"] += 0.5  # Increment progress after receiving response
 
             # Analyze the response
             if "DISPENSE STATE: ACTIVE" in response:
@@ -238,13 +337,205 @@ def can_start_tank_test(ip, port):
             messagebox.showinfo("Tank Test Status", message)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to check tank test status: {e}")
+        finally:
+            progress_bar["value"] = progress_bar["maximum"]  # Ensure progress is complete
 
     threading.Thread(target=task).start()
     
 # Add the "Can I start my Tank Test?" button to the GUI
-test_button = tk.Button(header_frame, text="Can I start my Tank Test?", 
+test_button = tk.Button(header_frame, text="Can I start a SLD (Static Leak Detection) Test?", 
                         command=lambda: can_start_tank_test(ip_entry.get(), port_entry.get()))
 test_button.grid(row=6, column=0, columnspan=2, pady=10)
+
+
+
+def analyze_full_csld(ip, port):
+    """
+    Comprehensive CSLD analysis covering all document conditions with detailed data for each issue.
+    Includes progress bar updates.
+    """
+    def task():
+        try:
+            # Initialize progress bar
+            progress_bar["value"] = 0
+            progress_bar["maximum"] = len(COMMANDS) + 1  # +1 for the final log and display step
+            
+            tn = telnetlib.Telnet(ip, int(port))
+
+            # Fetch all reports required for the full analysis
+            reports = {}
+            for i, (name, (command, wait_time)) in enumerate(COMMANDS.items(), start=1):
+                tn.write(f"\x01{command}\r".encode("ascii"))
+                response = tn.read_until(b"\x03", timeout=max(wait_time // 1000, 2)).decode("ascii")
+                reports[name] = response
+
+                # Update progress bar after each command
+                progress_bar["value"] = i
+
+            tn.close()
+
+            # Begin comprehensive analysis
+            analysis = []
+
+            # Phase 1: Pre-conditions (Idle, Stability)
+            if "DISPENSE STATE: ACTIVE" in reports["CSLD Moving Average Table"]:
+                analysis.append("Tank is not idle. Data: DISPENSE STATE: ACTIVE detected in Moving Average Table.")
+
+            volumes = [
+                float(line.split()[2]) for line in reports["CSLD Moving Average Table"].splitlines()
+                if line.strip() and line[0].isdigit()
+            ]
+            if max(volumes) - min(volumes) > 0.1:
+                analysis.append(f"Volume fluctuations detected. Data: Max Volume = {max(volumes)}, Min Volume = {min(volumes)}.")
+
+            temperatures = [
+                float(line.split()[4]) for line in reports["CSLD Moving Average Table"].splitlines()
+                if line.strip() and line[0].isdigit()
+            ]
+            if max(temperatures) - min(temperatures) > 1.0:
+                analysis.append(f"Temperature fluctuations detected. Data: Max Temp = {max(temperatures)}, Min Temp = {min(temperatures)}.")
+
+            # Phase 2: Test Execution (Duration, Leak Rates)
+            if "TEST DURATION" in reports["CSLD Rate Test"]:
+                test_duration = float(reports["CSLD Rate Test"].split("TEST DURATION:")[1].split()[0])
+                if test_duration < 28:
+                    analysis.append(f"Test duration insufficient. Data: TEST DURATION = {test_duration} minutes.")
+            else:
+                analysis.append("Test duration data missing. Data: No TEST DURATION field found in Rate Test report.")
+
+            if "leak rate < +0.4 gph" not in reports["CSLD Results Report"]:
+                leak_rate_lines = [line for line in reports["CSLD Results Report"].splitlines() if "LEAK RATE" in line]
+                analysis.append(f"Leak rate exceeds acceptable threshold. Data: {'; '.join(leak_rate_lines)}")
+
+            # Phase 3: Post-Test Analysis
+            if "CSLD Volume Table must be complete" not in reports["CSLD Volume Table"]:
+                analysis.append("CSLD Volume Table incomplete. Data: Volume Table report indicates missing entries.")
+
+            # Phase 4: Hardware and Communication Diagnostics
+            if "PROBE FAULT" in reports["DIM EVENT HISTORY BUFFER"]:
+                fault_lines = [line for line in reports["DIM EVENT HISTORY BUFFER"].splitlines() if "PROBE FAULT" in line]
+                analysis.append(f"Probe faults detected. Data: {'; '.join(fault_lines)}")
+
+            if "COMMUNICATION ERROR" in reports["DIM EVENT HISTORY BUFFER"]:
+                error_lines = [line for line in reports["DIM EVENT HISTORY BUFFER"].splitlines() if "COMMUNICATION ERROR" in line]
+                analysis.append(f"Communication error detected. Data: {'; '.join(error_lines)}")
+
+            # Advanced Scenarios (Multi-Tank, Environmental)
+            if "Manifolded Tanks" in reports["Tank Linear Calculated Full Volume"]:
+                analysis.append("Multi-tank system detected. Data: 'Manifolded Tanks' present in Full Volume report.")
+
+            # Generate Compliance Log
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_file = os.path.join(CONFIG_FOLDER, f"CSLD_Analysis_{timestamp}.log")
+            with open(log_file, 'w') as log:
+                log.write("CSLD Comprehensive Analysis Log\n")
+                log.write(f"Timestamp: {timestamp}\n\n")
+                log.write("Issues Detected:\n")
+                log.writelines(f"- {item}\n" for item in analysis)
+
+            # Update progress bar for final step
+            progress_bar["value"] = progress_bar["maximum"]
+
+            # Display Results
+            analysis_window = tk.Toplevel()
+            analysis_window.title("CSLD Analysis")
+            
+            # Add completion message
+            completion_label = tk.Label(
+                analysis_window, 
+                text=f"Analysis complete. Log saved to {log_file}", 
+                fg="green", 
+                font=("Arial", 12, "bold"),
+                wraplength=600
+            )
+            completion_label.pack(pady=10)
+
+            # Display the analysis results in a scrolled text box
+            summary = f"CSLD Comprehensive Analysis:\n\nIssues Detected:\n{'\n'.join(analysis) or 'None detected.'}\n"
+            text_widget = scrolledtext.ScrolledText(analysis_window, wrap=tk.WORD, width=100, height=30)
+            text_widget.insert(tk.END, summary)
+            text_widget.pack(expand=True, fill=tk.BOTH)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to perform CSLD analysis: {e}")
+        finally:
+            # Ensure progress bar reaches maximum on completion or error
+            progress_bar["value"] = progress_bar["maximum"]
+
+    threading.Thread(target=task).start()
+
+    
+csld_button = tk.Button(header_frame, text="CSLD Analysis", 
+                        command=lambda: analyze_full_csld(ip_entry.get(), port_entry.get()))
+csld_button.grid(row=9, column=0, columnspan=2, pady=10)
+
+
+
+
+
+def ensure_folder(folder_path):
+    """
+    Ensure the folder exists, creating it if necessary.
+    """
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+def download_and_open_help_file():
+    """
+    Check for internet connection and download or open the help file and the PDF.
+    """
+    help_file_url = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/help/help.html"
+    pdf_file_url = "https://raw.githubusercontent.com/devinalonzo/myprogram/main/help/CSLD.pdf"
+    help_save_path = os.path.join(CONFIG_FOLDER, "help.html")
+    pdf_save_path = os.path.join(CONFIG_FOLDER, "CSLD.pdf")
+
+    def is_internet_connected():
+        try:
+            requests.get("https://www.google.com", timeout=5)
+            return True
+        except requests.ConnectionError:
+            return False
+
+    if is_internet_connected():
+        try:
+            # Ensure the folder exists
+            ensure_folder(CONFIG_FOLDER)
+
+            # Download the HTML help file
+            response = requests.get(help_file_url)
+            response.raise_for_status()  # Raise error for HTTP issues
+            with open(help_save_path, "wb") as file:
+                file.write(response.content)
+
+            # Download the PDF file
+            response = requests.get(pdf_file_url)
+            response.raise_for_status()  # Raise error for HTTP issues
+            with open(pdf_save_path, "wb") as file:
+                file.write(response.content)
+
+            # Open the downloaded HTML file in a browser
+            webbrowser.open(help_save_path)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to download the files: {e}")
+    else:
+        # Check if the HTML file exists locally
+        if os.path.exists(help_save_path):
+            # Open the HTML file locally
+            webbrowser.open(help_save_path)
+            messagebox.showinfo("Help File", "Opened the local help file.")
+        else:
+            # File not available locally
+            messagebox.showwarning(
+                "Help File Unavailable",
+                "Help file is unavailable. Please connect to the internet to download it."
+            )
+
+# Add the "Help" button to the GUI
+help_button = tk.Button(root, text="Help", command=download_and_open_help_file)
+help_button.place(relx=0.95, rely=0.05, anchor=tk.NE)
+
+
+
 
 def on_connect_and_log():
     ip = ip_entry.get()
@@ -280,7 +571,7 @@ progress_bar.grid(row=4, column=0, columnspan=2, pady=10)
 connect_button = tk.Button(header_frame, text="Connect and Log", command=on_connect_and_log)
 connect_button.grid(row=5, column=0, columnspan=2, pady=10)
 
-commands_frame = tk.LabelFrame(main_frame, text="Commands")
+commands_frame = tk.LabelFrame(main_frame, text="Manual Commands")
 commands_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
 
 paginated_buttons = PaginatedButtons(

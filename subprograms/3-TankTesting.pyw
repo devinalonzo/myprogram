@@ -1,152 +1,297 @@
+import os
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox, scrolledtext, ttk
 import telnetlib
 import threading
-import os
-import json
-import time
 import datetime
-import pyperclip
+import configparser
 
-CONFIG_FILE = "telnet_logger_config.json"
-BASE_DIRECTORY = os.path.expanduser("~/Desktop/Tank Testing Reports")
+# Constants
+CONFIG_FOLDER = os.path.expanduser("~/Desktop/Tank Readings")
+COMMANDS = {
+    "System Configuration Report": ("I10200", 16000),
+    "System Revision Level Report": ("I90200", 5000),
+    "DIM Software Version": ("I79000", 4000),
+    "DIM String": ("I79200", 3000),
+    "Priority Alarm History": ("I11100", 45000),
+    "Non-priority Alarm History": ("I11200", 40000),
+    "Inventory Report": ("I20100", 10000),
+    "In-Tank Delivery Report": ("I20200", 125000),
+    "Tank Linear Calculated Full Volume": ("I60A00", 6000),
+    "Tank Manifolded Partners": ("I61200", 8000),
+    "Basic Reconciliation History": ("I@A4000", 135000),
+    "Basic Inventory Reconciliation Periodic \"Row\" Report (Current)": ("IC070000", 135000),
+    "Basic Inventory Reconciliation Periodic \"Row\" Report (Previous)": ("IC070001", 135000),
+    "BIR Meter Data Present": ("I61500", 5000),
+    "BIR Meter/Tank Mapping": ("I7B100", 15000),
+    "Meter Map Diagnostics": ("I@A002", 27000),
+    "ASR METER EVENT HISTORY BUFFER": ("I@A200", 45000),
+    "ASR Error Event History Buffer": ("I@A900", 6000),
+    "DIM EVENT HISTORY BUFFER": ("I@AB00", 55000),
+    "BIR/ASR METER TOTALIZERS": ("I@AA00", 27000),
+    "AccuChart Calibration History": ("IB9400", 7000),
+    "AccuChart Diagnostics - Calibration Status": ("I@B600", 30000),
+    "TANK CALIBRATION DATA": ("I@B900", 50000),
+    "Accuchart Update Scheduling": ("I61600", 6000),
+    "DIM BIR MAP and Event Buffer Reset": ("S79E00149", 0),
+    "CSLD Results Report": ("I25100", 7000),
+    "CSLD Rate Table": ("IA5100", 240000),
+    "CSLD Rate Test": ("IA5200", 8000),
+    "CSLD Volume Table": ("IA5300", 20000),
+    "CSLD Moving Average Table": ("IA5400", 2100000),
+    "Tank Test History": ("I20700", 45000),
+    "In-Tank Leak Test Results Reports": ("I20800", 18000),
+    "In-Tank Delivery Report": ("I20200", 125000),
+    "TANK 20 POINT VOLUMES": ("I60600", 30000),
+    "Tank Chart Report": ("I21100000001", 180000),
+    "0.20 GAL/HR RESULTS": ("I37300", 27000),
+    "0.20 GAL/HR History": ("I37400", 15000),
+    "0.20 GAL/HR PRESSURE LINE LEAK DIAGNOSTIC REPORT": ("IB8900", 52000),
+    "MID TEST RESULTS": ("IB8800", 30000),
+    "3.0 GAL/HR Test Results": ("IB8700", 40000),
+    "0.10 GAL/HR PRESSURE LINE LEAK DIAGNOSTIC REPORT": ("IB8A00", 10000),
+    "WPLLD Line Leak 3.0 GPH Test Diagnostic": ("IB8B00", 5000),
+    "WPLLD Line Leak Mid-range Test Diagnostic": ("IB8C00", 5000),
+    "WPLLD Line Leak 0.2 GPH Test Diagnostic": ("IB8D00", 5000),
+    "WPLLD Line Leak 0.1 GPH Test Diagnostic": ("IB8E00", 5000),
+    "Liquid Sensor Status Report": ("I30100", 5000),
+    "Type B (3-Wire CL) Sensor Status Report": ("I34600", 5000),
+    "Type A (2-Wire CL) Sensor Status Report": ("I34100", 5000),
+    "Warm Start": ("S00100", 5000)
+}
 
+COMMANDS_LIST = list(COMMANDS.items())
+ROWS, COLUMNS = 5, 2
+BUTTONS_PER_PAGE = ROWS * COLUMNS
 
-def save_config(data):
-    """Save input data to a configuration file."""
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(data, f)
+class PaginatedButtons:
+    def __init__(self, parent, commands, execute_command_callback):
+        self.parent = parent
+        self.commands = commands
+        self.execute_command_callback = execute_command_callback
+        self.current_page = 0
+        self.total_pages = (len(self.commands) + BUTTONS_PER_PAGE - 1) // BUTTONS_PER_PAGE
 
+        self.buttons_frame = tk.Frame(self.parent)
+        self.buttons_frame.pack(expand=True, fill=tk.BOTH)
+
+        self.navigation_frame = tk.Frame(self.parent)
+        self.navigation_frame.pack(fill=tk.X)
+
+        self.previous_button = tk.Button(
+            self.navigation_frame, text="Previous", command=self.previous_page
+        )
+        self.previous_button.pack(side=tk.LEFT, padx=20)
+
+        self.page_label = tk.Label(self.navigation_frame, text="")
+        self.page_label.pack(side=tk.LEFT, expand=True)
+
+        self.next_button = tk.Button(
+            self.navigation_frame, text="Next", command=self.next_page
+        )
+        self.next_button.pack(side=tk.RIGHT, padx=20)
+
+        self.update_page()
+
+    def update_page(self):
+        for widget in self.buttons_frame.winfo_children():
+            widget.destroy()
+
+        start_index = self.current_page * BUTTONS_PER_PAGE
+        end_index = start_index + BUTTONS_PER_PAGE
+        for i, (name, (command, wait_time)) in enumerate(self.commands[start_index:end_index]):
+            button = tk.Button(
+                self.buttons_frame,
+                text=name,
+                command=lambda c=command, n=name, w=wait_time: self.execute_command_callback(c, n, w),
+            )
+            button.grid(row=i // COLUMNS, column=i % COLUMNS, padx=10, pady=10)
+
+        self.page_label.config(
+            text=f"Page {self.current_page + 1} of {self.total_pages}"
+        )
+        self.previous_button.config(state=tk.NORMAL if self.current_page > 0 else tk.DISABLED)
+        self.next_button.config(state=tk.NORMAL if self.current_page < self.total_pages - 1 else tk.DISABLED)
+
+    def previous_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.update_page()
+
+    def next_page(self):
+        if self.current_page < self.total_pages - 1:
+            self.current_page += 1
+            self.update_page()
+
+def ensure_folder(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+def save_config(ip, port, site_name, site_number):
+    ensure_folder(CONFIG_FOLDER)
+    config = configparser.ConfigParser()
+    config['Settings'] = {
+        'IP_Address': ip,
+        'Port': port,
+        'Site_Name': site_name,
+        'Site_Number': site_number
+    }
+    with open(os.path.join(CONFIG_FOLDER, 'config.ini'), 'w') as configfile:
+        config.write(configfile)
 
 def load_config():
-    """Load input data from the configuration file."""
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
-    return {}
+    config_path = os.path.join(CONFIG_FOLDER, 'config.ini')
+    if os.path.exists(config_path):
+        config = configparser.ConfigParser()
+        config.read(config_path)
+        return config['Settings']['IP_Address'], config['Settings']['Port'], config['Settings']['Site_Name'], config['Settings']['Site_Number']
+    return "", "", "", ""
 
+def execute_command(ip, port, command, name, wait_time):
+    def task():
+        try:
+            tn = telnetlib.Telnet(ip, int(port))
+            tn.write(f"\x01{command}\r".encode("ascii"))
+            response = tn.read_until(b"\x03", timeout=max(wait_time // 1000, 2)).decode("ascii")
+            tn.close()
 
-def get_unique_filename(directory, filename):
-    """Generate a unique filename if a file with the same name already exists."""
-    base, ext = os.path.splitext(filename)
-    second_reading_filename = f"{base} - 2nd Reading{ext}"
-    if not os.path.exists(os.path.join(directory, filename)):
-        return filename
-    return second_reading_filename
+            # Display response in a new window
+            response_window = tk.Toplevel()
+            response_window.title(f"Response for {name}")
+            response_text = scrolledtext.ScrolledText(response_window, wrap=tk.WORD, width=80, height=20)
+            response_text.insert(tk.END, response)
+            response_text.pack(expand=True, fill=tk.BOTH)
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
 
+    threading.Thread(target=task).start()
 
-def create_log_file(site_name, site_number, tank):
-    """Create a unique log file path."""
-    current_date = datetime.datetime.now().strftime("%m.%d")
-    file_name = f"{current_date} - Tank {tank}.txt"
+def connect_and_log(ip, port, site_name, site_number, progress_bar):
+    def task():
+        try:
+            tn = telnetlib.Telnet(ip, int(port))
+            ensure_folder(os.path.join(CONFIG_FOLDER, site_name, site_number))
+            timestamp = datetime.datetime.now().strftime("%d%m%Y.%H%M")
+            log_file = os.path.join(CONFIG_FOLDER, site_name, site_number, f"{timestamp}.txt")
 
-    # Create directory structure if not present
-    site_path = os.path.join(BASE_DIRECTORY, site_name, site_number)
-    os.makedirs(site_path, exist_ok=True)
+            progress_bar["maximum"] = len(COMMANDS)
+            progress_bar["value"] = 0
 
-    return os.path.join(site_path, get_unique_filename(site_path, file_name))
+            with open(log_file, 'w') as f:
+                for i, (name, (command, wait_time)) in enumerate(COMMANDS.items()):
+                    tn.write(f"\x01{command}\r".encode("ascii"))
+                    response = tn.read_until(b"\x03", timeout=max(wait_time // 1000, 2)).decode("ascii")
+                    f.write(f"Command: {command} ({name})\n")
+                    f.write(f"Response:\n{response}\n\n")
+                    progress_bar["value"] = i + 1
 
+            tn.close()
+            messagebox.showinfo("Success", "Log saved successfully.")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+        finally:
+            progress_bar["value"] = 0
 
-def send_command(ip, command):
-    """Send a command to the Telnet connection and return the response."""
-    try:
-        tn = telnetlib.Telnet(ip, port=4004, timeout=10)
-        tn.write(command.encode("ascii") + b"\n")
-        time.sleep(1)
-        response = tn.read_until(b"\x03", timeout=2).decode("ascii")
-        tn.close()
-        return response.strip()
-    except Exception as e:
-        return f"Error: {str(e)}"
+    threading.Thread(target=task).start()
 
-
-def show_response(command):
-    """Display the response to a command in a popup window."""
-    ip = ip_entry.get().strip()
-    tank = tank_entry.get().strip()
-    site_name = site_name_entry.get().strip()
-    site_number = site_number_entry.get().strip()
-
-    if not ip or not site_name or not site_number or not tank:
-        messagebox.showerror("Input Error", "All fields must be filled out.")
-        return
-
-    # Replace {T} with the tank number in the command
-    command = command.replace("{T}", tank)
-
-    # Fetch response from the command
-    response = send_command(ip, command)
-
-    # Save the response to a log file
-    log_file_path = create_log_file(site_name, site_number, tank)
-
-    with open(log_file_path, "a") as logfile:
-        logfile.write(f"Command: {command}\n")
-        logfile.write("Response:\n")
-        logfile.write(response + "\n\n")
-
-    # Create a popup window
-    popup = tk.Toplevel()
-    popup.title(f"Response for {command}")
-    response_text = tk.Text(popup, wrap=tk.WORD, width=60, height=20)
-    response_text.insert(tk.END, response)
-    response_text.config(state=tk.DISABLED)  # Make read-only
-    response_text.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
-
-    # Add a "Copy" button
-    def copy_to_clipboard():
-        pyperclip.copy(response)
-        messagebox.showinfo("Copied", "Response text copied to clipboard!")
-
-    copy_button = tk.Button(popup, text="Copy", command=copy_to_clipboard)
-    copy_button.pack(pady=10)
-
-
-# GUI setup
+# GUI Setup
 root = tk.Tk()
-root.title("Telnet Logger with Command Execution")
+root.title("Tanks Baby Tanks")
+root.state('zoomed')  # Make the GUI full screen
 
-config = load_config()
-ip_default = config.get("ip", "")
-tank_default = config.get("tank", "")
-site_name_default = config.get("site_name", "")
-site_number_default = config.get("site_number", "")
+main_frame = tk.Frame(root)
+main_frame.pack(expand=True, fill=tk.BOTH)
 
-# Input labels and fields
-tk.Label(root, text="IP Address:").grid(row=0, column=0, padx=10, pady=5, sticky="e")
-ip_entry = tk.Entry(root, width=30)
-ip_entry.insert(0, ip_default)
-ip_entry.grid(row=0, column=1, padx=10, pady=5)
+header_frame = tk.Frame(main_frame)
+header_frame.pack(pady=20)
 
-tk.Label(root, text="Tank #:").grid(row=1, column=0, padx=10, pady=5, sticky="e")
-tank_entry = tk.Entry(root, width=30)
-tank_entry.insert(0, tank_default)
-tank_entry.grid(row=1, column=1, padx=10, pady=5)
 
-tk.Label(root, text="Site Name:").grid(row=2, column=0, padx=10, pady=5, sticky="e")
-site_name_entry = tk.Entry(root, width=30)
-site_name_entry.insert(0, site_name_default)
-site_name_entry.grid(row=2, column=1, padx=10, pady=5)
+# Function to check if the tank test can start
+def can_start_tank_test(ip, port):
+    def task():
+        try:
+            # Connect to the tank system
+            tn = telnetlib.Telnet(ip, int(port))
+            tn.write(f"\x01IA5400\r".encode("ascii"))
+            response = tn.read_until(b"\x03", timeout=30).decode("ascii")
+            tn.close()
 
-tk.Label(root, text="Site #:").grid(row=3, column=0, padx=10, pady=5, sticky="e")
-site_number_entry = tk.Entry(root, width=30)
-site_number_entry.insert(0, site_number_default)
-site_number_entry.grid(row=3, column=1, padx=10, pady=5)
+            # Analyze the response
+            if "DISPENSE STATE: ACTIVE" in response:
+                message = "No, you cannot run the test because dispensing is currently active."
+            elif "MOVING AVERAGE" in response:
+                # Example logic: check for volume and temperature stability
+                volumes = [float(line.split()[2]) for line in response.splitlines() if line.strip() and line[0].isdigit()]
+                temperatures = [float(line.split()[4]) for line in response.splitlines() if line.strip() and line[0].isdigit()]
 
-# Command Buttons
-commands = [
-    ("I11300", "Active Alarm Report"),
-    ("I20C0{T}", "Last Delivery"),
-    ("IA540{T}", "Moving Average"),
-    ("IA550{T}", "In-Tank Leak Test Status Report"),
-    ("I2030{T}", "In-Tank Leak Detect Report"),
-    ("I2070{T}", "In-Tank Leak Test History Report"),
-    ("I2080{T}", "In-Tank Leak Test Results Report"),
-]
+                if max(volumes) - min(volumes) > 0.1:
+                    message = "No, you cannot run the test because the tank volume is not stable."
+                elif max(temperatures) - min(temperatures) > 1.0:
+                    message = "No, you cannot run the test because the temperature is not stable."
+                else:
+                    message = "Yes, you can run the test. The tank volume and temperature are stable."
 
-# Add Buttons
-for idx, (cmd, label) in enumerate(commands, start=5):
-    button = tk.Button(root, text=label, command=lambda c=cmd: show_response(c))
-    button.grid(row=idx, column=0, columnspan=2, padx=10, pady=5)
+            else:
+                message = "No, you cannot run the test. The response could not be analyzed."
+
+            # Show the message
+            messagebox.showinfo("Tank Test Status", message)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to check tank test status: {e}")
+
+    threading.Thread(target=task).start()
+    
+# Add the "Can I start my Tank Test?" button to the GUI
+test_button = tk.Button(header_frame, text="Can I start my Tank Test?", 
+                        command=lambda: can_start_tank_test(ip_entry.get(), port_entry.get()))
+test_button.grid(row=6, column=0, columnspan=2, pady=10)
+
+def on_connect_and_log():
+    ip = ip_entry.get()
+    port = port_entry.get()
+    site_name = site_name_entry.get()
+    site_number = site_number_entry.get()
+    save_config(ip, port, site_name, site_number)
+    connect_and_log(ip, port, site_name, site_number, progress_bar)
+
+ip_label = tk.Label(header_frame, text="IP Address")
+ip_label.grid(row=0, column=0, padx=5, pady=5)
+ip_entry = tk.Entry(header_frame)
+ip_entry.grid(row=0, column=1, padx=5, pady=5)
+
+port_label = tk.Label(header_frame, text="Port")
+port_label.grid(row=1, column=0, padx=5, pady=5)
+port_entry = tk.Entry(header_frame)
+port_entry.grid(row=1, column=1, padx=5, pady=5)
+
+site_name_label = tk.Label(header_frame, text="Site Name")
+site_name_label.grid(row=2, column=0, padx=5, pady=5)
+site_name_entry = tk.Entry(header_frame)
+site_name_entry.grid(row=2, column=1, padx=5, pady=5)
+
+site_number_label = tk.Label(header_frame, text="Site Number")
+site_number_label.grid(row=3, column=0, padx=5, pady=5)
+site_number_entry = tk.Entry(header_frame)
+site_number_entry.grid(row=3, column=1, padx=5, pady=5)
+
+progress_bar = ttk.Progressbar(header_frame, orient="horizontal", length=300, mode="determinate")
+progress_bar.grid(row=4, column=0, columnspan=2, pady=10)
+
+connect_button = tk.Button(header_frame, text="Connect and Log", command=on_connect_and_log)
+connect_button.grid(row=5, column=0, columnspan=2, pady=10)
+
+commands_frame = tk.LabelFrame(main_frame, text="Commands")
+commands_frame.pack(expand=True, fill=tk.BOTH, padx=20, pady=20)
+
+paginated_buttons = PaginatedButtons(
+    commands_frame, COMMANDS_LIST, lambda c, n, w: execute_command(ip_entry.get(), port_entry.get(), c, n, w)
+)
+
+# Load saved config
+ip, port, site_name, site_number = load_config()
+ip_entry.insert(0, ip)
+port_entry.insert(0, port)
+site_name_entry.insert(0, site_name)
+site_number_entry.insert(0, site_number)
 
 root.mainloop()

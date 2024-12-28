@@ -2,18 +2,32 @@ import sys
 import wmi
 import ctypes
 import os
+import ipaddress
+import logging
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QComboBox, QVBoxLayout,
     QHBoxLayout, QMessageBox, QDialog, QLineEdit, QGridLayout, QGroupBox,
-    QRadioButton, QButtonGroup
+    QRadioButton, QButtonGroup, QToolTip
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
+
+# Logging setup
+LOG_FILE = "ip_changer.log"
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 def is_admin():
     """Check if the script is running with administrative privileges."""
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
     except:
+        return False
+
+def validate_ip(ip):
+    """Validate an IP address."""
+    try:
+        ipaddress.ip_address(ip)
+        return True
+    except ValueError:
         return False
 
 class IPChanger(QWidget):
@@ -24,6 +38,12 @@ class IPChanger(QWidget):
         self.load_adapters()
 
     def initUI(self):
+        self.setStyleSheet("""
+            QLabel { font-size: 14px; }
+            QPushButton { font-size: 14px; background-color: #5A9; padding: 5px; }
+            QComboBox { font-size: 14px; }
+        """)
+        
         # Adapter selection
         adapter_label = QLabel('Select the network adapter you would like to change the IP:')
         self.adapter_combo = QComboBox()
@@ -54,7 +74,7 @@ class IPChanger(QWidget):
 
         # IP Configuration display
         self.ip_config_label = QLabel('Current IP Configuration:\n')
-        self.ip_config_label.setStyleSheet("QLabel { background-color : lightgrey; padding: 5px; }")
+        self.ip_config_label.setStyleSheet("QLabel { background-color : lightgrey; padding: 5px; font-size: 12px; }")
 
         # Main layout
         main_layout = QVBoxLayout()
@@ -100,8 +120,10 @@ class IPChanger(QWidget):
                 res1 = adapter.EnableDHCP()
                 res2 = adapter.SetDNSServerSearchOrder()
                 QMessageBox.information(self, 'Success', 'Adapter set to DHCP.')
+                logging.info(f"Adapter '{adapter.Description}' set to DHCP.")
             except Exception as e:
                 QMessageBox.warning(self, 'Error', f'Failed to set DHCP:\n{e}')
+                logging.error(f"Failed to set DHCP for adapter '{adapter.Description}': {e}")
         else:
             scheme = ip_schemes.get(scheme_name)
             if not scheme:
@@ -117,8 +139,10 @@ class IPChanger(QWidget):
                 else:
                     res2 = adapter.SetGateways(DefaultIPGateway=[])
                 QMessageBox.information(self, 'Success', f'Adapter IP set to {ip}.')
+                logging.info(f"Adapter '{adapter.Description}' set to IP {ip}.")
             except Exception as e:
                 QMessageBox.warning(self, 'Error', f'Failed to set IP:\n{e}')
+                logging.error(f"Failed to set IP for adapter '{adapter.Description}': {e}")
         self.update_ip_config_display()
 
     def open_manual_dialog(self, adapter):
@@ -150,57 +174,36 @@ class ManualIPDialog(QDialog):
     def initUI(self):
         layout = QGridLayout()
 
-        ip_label = QLabel('IP Address:')
-        self.ip_edits = [QLineEdit() for _ in range(4)]
-        ip_layout = QHBoxLayout()
-        for i, edit in enumerate(self.ip_edits):
-            edit.setFixedWidth(50)  # Increased width for visibility
-            edit.setMaxLength(3)
-            edit.setAlignment(Qt.AlignCenter)
-            ip_layout.addWidget(edit)
-            if i < 3:
-                ip_layout.addWidget(QLabel('.'))
-
-        subnet_label = QLabel('Subnet Mask:')
-        self.subnet_edits = [QLineEdit() for _ in range(4)]
-        subnet_layout = QHBoxLayout()
-        for i, edit in enumerate(self.subnet_edits):
-            edit.setFixedWidth(50)  # Increased width for visibility
-            edit.setMaxLength(3)
-            edit.setAlignment(Qt.AlignCenter)
-            subnet_layout.addWidget(edit)
-            if i < 3:
-                subnet_layout.addWidget(QLabel('.'))
-
-        gateway_label = QLabel('Gateway:')
-        self.gateway_edits = [QLineEdit() for _ in range(4)]
-        gateway_layout = QHBoxLayout()
-        for i, edit in enumerate(self.gateway_edits):
-            edit.setFixedWidth(50)  # Increased width for visibility
-            edit.setMaxLength(3)
-            edit.setAlignment(Qt.AlignCenter)
-            gateway_layout.addWidget(edit)
-            if i < 3:
-                gateway_layout.addWidget(QLabel('.'))
-
-        layout.addWidget(ip_label, 0, 0)
-        layout.addLayout(ip_layout, 0, 1)
-        layout.addWidget(subnet_label, 1, 0)
-        layout.addLayout(subnet_layout, 1, 1)
-        layout.addWidget(gateway_label, 2, 0)
-        layout.addLayout(gateway_layout, 2, 1)
+        self.ip_edits, ip_layout = self.create_ip_input('IP Address:', layout, 0)
+        self.subnet_edits, subnet_layout = self.create_ip_input('Subnet Mask:', layout, 1)
+        self.gateway_edits, gateway_layout = self.create_ip_input('Gateway:', layout, 2)
 
         self.ok_button = QPushButton('OK')
         self.ok_button.clicked.connect(self.set_manual_ip)
         layout.addWidget(self.ok_button, 3, 0, 1, 2)
         self.setLayout(layout)
 
+    def create_ip_input(self, label_text, layout, row):
+        label = QLabel(label_text)
+        edits = [QLineEdit() for _ in range(4)]
+        input_layout = QHBoxLayout()
+        for i, edit in enumerate(edits):
+            edit.setFixedWidth(50)
+            edit.setMaxLength(3)
+            edit.setAlignment(Qt.AlignCenter)
+            input_layout.addWidget(edit)
+            if i < 3:
+                input_layout.addWidget(QLabel('.'))
+        layout.addWidget(label, row, 0)
+        layout.addLayout(input_layout, row, 1)
+        return edits, input_layout
+
     def set_manual_ip(self):
         ip = '.'.join([edit.text() for edit in self.ip_edits])
         subnet = '.'.join([edit.text() for edit in self.subnet_edits])
         gateway = '.'.join([edit.text() for edit in self.gateway_edits])
-        if not ip or not subnet:
-            QMessageBox.warning(self, 'Error', 'IP and Subnet Mask are required.')
+        if not validate_ip(ip) or not validate_ip(subnet):
+            QMessageBox.warning(self, 'Error', 'Invalid IP or Subnet Mask.')
             return
         try:
             res1 = self.adapter.EnableStatic(IPAddress=[ip], SubnetMask=[subnet])
@@ -209,15 +212,15 @@ class ManualIPDialog(QDialog):
             else:
                 res2 = self.adapter.SetGateways(DefaultIPGateway=[])
             QMessageBox.information(self, 'Success', f'Adapter IP set to {ip}.')
+            logging.info(f"Manual IP set for adapter '{self.adapter.Description}': IP={ip}, Subnet={subnet}, Gateway={gateway}")
             self.accept()
         except Exception as e:
             QMessageBox.warning(self, 'Error', f'Failed to set IP:\n{e}')
+            logging.error(f"Failed to set manual IP for adapter '{self.adapter.Description}': {e}")
 
 if __name__ == '__main__':
     if not is_admin():
-        # Re-run the script with admin rights
-        ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", sys.executable, '"' + os.path.abspath(__file__) + '"', None, 1)
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, '"' + os.path.abspath(__file__) + '"', None, 1)
         sys.exit()
 
     ip_schemes = {

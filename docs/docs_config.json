@@ -1,0 +1,36 @@
+{
+  "groups": [
+    {
+      "id": "pump",
+      "name": "Pump Documentation",
+      "icon": "⚙",
+      "color": "#4f8ef7",
+      "folder": "pump",
+      "description": "Pump manuals, service bulletins, and wiring diagrams"
+    },
+    {
+      "id": "crind",
+      "name": "CRIND Documentation",
+      "icon": "💳",
+      "color": "#a78bfa",
+      "folder": "crind",
+      "description": "CRIND manuals, FlexPay guides, and M7 references"
+    },
+    {
+      "id": "veeder",
+      "name": "Veeder-Root Documentation",
+      "icon": "🛢",
+      "color": "#22d3ee",
+      "folder": "veeder",
+      "description": "ATG manuals, tank testing guides, and TLS references"
+    },
+    {
+      "id": "general",
+      "name": "General Reference",
+      "icon": "📋",
+      "color": "#34d399",
+      "folder": "general",
+      "description": "Quick guides, cheat sheets, and general reference documents"
+    }
+  ]
+}

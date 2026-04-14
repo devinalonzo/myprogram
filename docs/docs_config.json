@@ -6,15 +6,15 @@
       "icon": "⚙",
       "color": "#4f8ef7",
       "folder": "pump",
-      "description": "Pump manuals, service bulletins, and wiring diagrams"
+      "description": "Pump Docs"
     },
     {
-      "id": "crind",
-      "name": "CRIND Documentation",
+      "id": "passport",
+      "name": "Passport Documentation",
       "icon": "💳",
       "color": "#a78bfa",
-      "folder": "crind",
-      "description": "CRIND manuals, FlexPay guides, and M7 references"
+      "folder": "passport",
+      "description": "Passport Docs"
     },
     {
       "id": "veeder",
@@ -25,11 +25,11 @@
       "description": "ATG manuals, tank testing guides, and TLS references"
     },
     {
-      "id": "general",
-      "name": "General Reference",
+      "id": "customers",
+      "name": "Customer Specific Documentation",
       "icon": "📋",
       "color": "#34d399",
-      "folder": "general",
+      "folder": "customers",
       "description": "Quick guides, cheat sheets, and general reference documents"
     }
   ]
